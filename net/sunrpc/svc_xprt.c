@@ -664,6 +664,7 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 					return -EINTR;
 				}
 				schedule_timeout(msecs_to_jiffies(500));
+				freezable_schedule_timeout(msecs_to_jiffies(500));
 			}
 			rqstp->rq_pages[i] = p;
 		}
