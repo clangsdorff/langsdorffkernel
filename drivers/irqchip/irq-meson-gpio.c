@@ -514,7 +514,8 @@ static int meson_gpio_intc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, ctl);
-	dev_info("%d to %d gpio interrupt mux initialized\n",
+
+	dev_info(&pdev->dev, "%d to %d gpio interrupt mux initialized\n",
 		ctl->params->nr_hwirq, ctl->params->nr_channels);
 
 	return 0;
