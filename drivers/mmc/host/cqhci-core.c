@@ -710,9 +710,6 @@ static int cqhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		mmc->cqe_on = true;
 		pr_debug("%s: cqhci: CQE on\n", mmc_hostname(mmc));
 		if (cqhci_readl(cq_host, CQHCI_CTL) & CQHCI_HALT) {
-#if IS_ENABLED(CONFIG_SEC_MMC_FEATURE)
-			cq_host->ops->err_cnt(mmc, HALT_UNHALT_ERR);
-#endif
 			pr_err("%s: cqhci: CQE failed to exit halt state\n",
 			       mmc_hostname(mmc));
 		}
