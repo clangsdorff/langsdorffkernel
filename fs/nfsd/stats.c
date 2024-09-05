@@ -29,7 +29,6 @@
 
 #include "nfsd.h"
 
-struct nfsd_stats	nfsdstats;
 struct svc_stat		nfsd_svcstats = {
 	.program	= &nfsd_program,
 };
@@ -49,12 +48,14 @@ static int nfsd_proc_show(struct seq_file *seq, void *v)
 		   percpu_counter_sum_positive(&nn->counter[NFSD_STATS_IO_WRITE]));
 
 	/* thread usage: */
-	seq_printf(seq, "th %u %u", nfsdstats.th_cnt, nfsdstats.th_fullcnt);
-	for (i=0; i<10; i++) {
-		unsigned int jifs = nfsdstats.th_usage[i];
-		unsigned int sec = jifs / HZ, msec = (jifs % HZ)*1000/HZ;
-		seq_printf(seq, " %u.%03u", sec, msec);
-	}
+	seq_printf(seq, "th %u 0", atomic_read(&nfsd_th_cnt));
+
+	/* deprecated thread usage histogram stats */
+	for (i = 0; i < 10; i++)
+		seq_puts(seq, " 0.000");
+
+	/* deprecated ra-cache stats */
+	seq_puts(seq, "\nra 0 0 0 0 0 0 0 0 0 0 0 0\n");
 
 	/* newline and ra-cache */
 	seq_printf(seq, "\nra %u", nfsdstats.ra_size);

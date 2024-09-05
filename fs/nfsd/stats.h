@@ -9,12 +9,6 @@
 
 #include <uapi/linux/nfsd/stats.h>
 
-struct nfsd_stats {
-	atomic_t	th_cnt;		/* number of available threads */
-};
-
-
-extern struct nfsd_stats	nfsdstats;
 extern struct svc_stat		nfsd_svcstats;
 
 int nfsd_percpu_counters_init(struct percpu_counter *counters, int num);

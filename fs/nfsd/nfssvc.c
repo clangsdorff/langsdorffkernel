@@ -31,12 +31,7 @@
 
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 
-bool inter_copy_offload_enable;
-EXPORT_SYMBOL_GPL(inter_copy_offload_enable);
-module_param(inter_copy_offload_enable, bool, 0644);
-MODULE_PARM_DESC(inter_copy_offload_enable,
-		 "Enable inter server to server copy offload. Default: false");
-
+atomic_t			nfsd_th_cnt = ATOMIC_INIT(0);
 extern struct svc_program	nfsd_program;
 static int			nfsd(void *vrqstp);
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
@@ -939,17 +934,7 @@ nfsd(void *vrqstp)
 
 	current->fs->umask = 0;
 
-	/*
-	 * thread is spawned with all signals set to SIG_IGN, re-enable
-	 * the ones that will bring down the thread
-	 */
-	allow_signal(SIGKILL);
-	allow_signal(SIGHUP);
-	allow_signal(SIGINT);
-	allow_signal(SIGQUIT);
-
-	nfsdstats.th_cnt++;
-	mutex_unlock(&nfsd_mutex);
+	atomic_inc(&nfsd_th_cnt);
 
 	set_freezable();
 
@@ -973,11 +958,7 @@ nfsd(void *vrqstp)
 		validate_process_creds();
 	}
 
-	/* Clear signals before calling svc_exit_thread() */
-	flush_signals(current);
-
-	mutex_lock(&nfsd_mutex);
-	nfsdstats.th_cnt --;
+	atomic_dec(&nfsd_th_cnt);
 
 out:
 	rqstp->rq_server = NULL;
