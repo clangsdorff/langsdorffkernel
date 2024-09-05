@@ -79,7 +79,9 @@ static int nfsd_proc_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int nfsd_proc_open(struct inode *inode, struct file *file)
+DEFINE_PROC_SHOW_ATTRIBUTE(nfsd);
+
+int nfsd_percpu_counters_init(struct percpu_counter *counters, int num)
 {
 	return single_open(file, nfsd_proc_show, NULL);
 }
