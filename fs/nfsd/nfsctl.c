@@ -1468,26 +1468,12 @@ static __net_init int nfsd_init_net(struct net *net)
 		goto out_idmap_error;
 	nn->nfsd_versions = NULL;
 	nn->nfsd4_minorversions = NULL;
-	retval = nfsd_reply_cache_init(nn);
-	if (retval)
-		goto out_drc_error;
-	nn->nfsd4_lease = 90;	/* default lease time */
-	nn->nfsd4_grace = 90;
-	nn->somebody_reclaimed = false;
-	nn->track_reclaim_completes = false;
-	nn->clverifier_counter = prandom_u32();
-	nn->clientid_base = prandom_u32();
-	nn->clientid_counter = nn->clientid_base + 1;
-	nn->s2s_cp_cl_id = nn->clientid_counter++;
-
-	atomic_set(&nn->ntf_refcnt, 0);
-	init_waitqueue_head(&nn->ntf_wq);
-	seqlock_init(&nn->boot_lock);
+	nfsd4_init_leases_net(nn);
+	get_random_bytes(&nn->siphash_key, sizeof(nn->siphash_key));
+	seqlock_init(&nn->writeverf_lock);
 
 	return 0;
 
-out_drc_error:
-	nfsd_idmap_shutdown(net);
 out_idmap_error:
 	nfsd_export_shutdown(net);
 out_export_error:
@@ -1496,9 +1482,6 @@ out_export_error:
 
 static __net_exit void nfsd_exit_net(struct net *net)
 {
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-
-	nfsd_reply_cache_shutdown(nn);
 	nfsd_idmap_shutdown(net);
 	nfsd_export_shutdown(net);
 	nfsd_netns_free_versions(net_generic(net, nfsd_net_id));
