@@ -96,11 +96,36 @@ static const struct proc_ops nfsd_proc_ops = {
 void
 nfsd_stat_init(void)
 {
-	svc_proc_register(&init_net, &nfsd_svcstats, &nfsd_proc_ops);
+	int i;
+
+	for (i = 0; i < num; i++)
+		percpu_counter_set(&counters[i], 0);
 }
 
-void
-nfsd_stat_shutdown(void)
+void nfsd_percpu_counters_destroy(struct percpu_counter counters[], int num)
 {
-	svc_proc_unregister(&init_net, "nfsd");
+	int i;
+
+	for (i = 0; i < num; i++)
+		percpu_counter_destroy(&counters[i]);
+}
+
+int nfsd_stat_counters_init(void)
+{
+	return nfsd_percpu_counters_init(nfsdstats.counter, NFSD_STATS_COUNTERS_NUM);
+}
+
+void nfsd_stat_counters_destroy(void)
+{
+	nfsd_percpu_counters_destroy(nfsdstats.counter, NFSD_STATS_COUNTERS_NUM);
+}
+
+void nfsd_proc_stat_init(struct net *net)
+{
+	svc_proc_register(net, &nfsd_svcstats, &nfsd_proc_ops);
+}
+
+void nfsd_proc_stat_shutdown(struct net *net)
+{
+	svc_proc_unregister(net, "nfsd");
 }
