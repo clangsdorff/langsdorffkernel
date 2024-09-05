@@ -331,12 +331,34 @@ static void nfsd4_fslocs_free(struct nfsd4_fs_locations *fsloc)
 	fsloc->locations = NULL;
 }
 
+static int export_stats_init(struct export_stats *stats)
+{
+	stats->start_time = ktime_get_seconds();
+	return nfsd_percpu_counters_init(stats->counter, EXP_STATS_COUNTERS_NUM);
+}
+
+static void export_stats_reset(struct export_stats *stats)
+{
+	if (stats)
+		nfsd_percpu_counters_reset(stats->counter,
+					   EXP_STATS_COUNTERS_NUM);
+}
+
+static void export_stats_destroy(struct export_stats *stats)
+{
+	if (stats)
+		nfsd_percpu_counters_destroy(stats->counter,
+					     EXP_STATS_COUNTERS_NUM);
+}
+
 static void svc_export_put(struct kref *ref)
 {
 	struct svc_export *exp = container_of(ref, struct svc_export, h.ref);
 	path_put(&exp->ex_path);
 	auth_domain_put(exp->ex_client);
 	nfsd4_fslocs_free(&exp->ex_fslocs);
+	export_stats_destroy(exp->ex_stats);
+	kfree(exp->ex_stats);
 	kfree(exp->ex_uuid);
 	kfree_rcu(exp, ex_rcu);
 }
@@ -700,6 +722,19 @@ static int svc_export_show(struct seq_file *m,
 	seq_path(m, &exp->ex_path, " \t\n\\");
 	seq_putc(m, '\t');
 	seq_escape(m, exp->ex_client->name, " \t\n\\");
+	if (export_stats) {
+		struct percpu_counter *counter = exp->ex_stats->counter;
+
+		seq_printf(m, "\t%lld\n", exp->ex_stats->start_time);
+		seq_printf(m, "\tfh_stale: %lld\n",
+			   percpu_counter_sum_positive(&counter[EXP_STATS_FH_STALE]));
+		seq_printf(m, "\tio_read: %lld\n",
+			   percpu_counter_sum_positive(&counter[EXP_STATS_IO_READ]));
+		seq_printf(m, "\tio_write: %lld\n",
+			   percpu_counter_sum_positive(&counter[EXP_STATS_IO_WRITE]));
+		seq_putc(m, '\n');
+		return 0;
+	}
 	seq_putc(m, '(');
 	if (test_bit(CACHE_VALID, &h->flags) && 
 	    !test_bit(CACHE_NEGATIVE, &h->flags)) {
@@ -742,6 +777,7 @@ static void svc_export_init(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_layout_types = 0;
 	new->ex_uuid = NULL;
 	new->cd = item->cd;
+	export_stats_reset(new->ex_stats);
 }
 
 static void export_update(struct cache_head *cnew, struct cache_head *citem)
@@ -778,6 +814,20 @@ static struct cache_head *svc_export_alloc(void)
 		return &i->h;
 	else
 		return NULL;
+
+	i->ex_stats = kmalloc(sizeof(*(i->ex_stats)), GFP_KERNEL);
+	if (!i->ex_stats) {
+		kfree(i);
+		return NULL;
+	}
+
+	if (export_stats_init(i->ex_stats)) {
+		kfree(i->ex_stats);
+		kfree(i);
+		return NULL;
+	}
+
+	return &i->h;
 }
 
 static const struct cache_detail svc_export_cache_template = {
