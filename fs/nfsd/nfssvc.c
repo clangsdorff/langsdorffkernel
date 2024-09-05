@@ -538,7 +538,6 @@ static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 		return;
 
 	nfsd_shutdown_net(net);
-	pr_info("nfsd: last server has exited, flushing export cache\n");
 	nfsd_export_flush(net);
 }
 
@@ -784,7 +783,6 @@ int
 nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 {
 	int	error;
-	bool	nfsd_up_before;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	mutex_lock(&nfsd_mutex);
@@ -803,8 +801,7 @@ nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 	error = nfsd_create_serv(net);
 	if (error)
 		goto out;
-
-	nfsd_up_before = nn->nfsd_net_up;
+	serv = nn->nfsd_serv;
 
 	error = nfsd_startup_net(nrservs, net, cred);
 	if (error)
@@ -812,17 +809,16 @@ nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 	error = nn->nfsd_serv->sv_ops->svo_setup(nn->nfsd_serv,
 			NULL, nrservs);
 	if (error)
-		goto out_shutdown;
-	/* We are holding a reference to nn->nfsd_serv which
-	 * we don't want to count in the return value,
-	 * so subtract 1
-	 */
-	error = nn->nfsd_serv->sv_nrthreads - 1;
-out_shutdown:
-	if (error < 0 && !nfsd_up_before)
-		nfsd_shutdown_net(net);
-out_destroy:
-	nfsd_destroy(net);		/* Release server */
+		goto out_put;
+	error = serv->sv_nrthreads;
+out_put:
+	/* Threads now hold service active */
+	if (xchg(&nn->keep_active, 0))
+		svc_put(serv);
+
+	if (serv->sv_nrthreads == 0)
+		nfsd_last_thread(net);
+	svc_put(serv);
 out:
 	mutex_unlock(&nfsd_mutex);
 	return error;
