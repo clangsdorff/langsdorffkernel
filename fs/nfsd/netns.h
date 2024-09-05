@@ -21,6 +21,14 @@
 struct cld_net;
 struct nfsd4_client_tracking_ops;
 
+enum {
+	/* cache misses due only to checksum comparison failures */
+	NFSD_STATS_PAYLOAD_MISSES,
+	/* amount of memory (in bytes) currently consumed by the DRC */
+	NFSD_STATS_DRC_MEM_USAGE,
+	NFSD_NET_COUNTERS_NUM
+};
+
 /*
  * Represents a nfsd "container". With respect to nfsv4 state tracking, the
  * fields of interest are the *_id_hashtbls and the *_name_tree. These track
