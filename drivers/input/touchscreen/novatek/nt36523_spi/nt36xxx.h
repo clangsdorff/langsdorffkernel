@@ -113,6 +113,7 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 //#define NVT_TOUCH_MP 1
 //#define MT_PROTOCOL_B 1
 #define WAKEUP_GESTURE 1
+#define SEC_DEXPAD 1
 #if WAKEUP_GESTURE
 extern const uint16_t gesture_key_array[];
 #endif
@@ -281,6 +282,7 @@ struct nvt_ts_data {
 	u8 touch_count;
 	struct input_dev *input_dev;
 	struct input_dev *input_dev_proximity;
+	struct input_dev *input_dev_dexpad;
 	uint16_t addr;
 	int8_t phys[32];
 	uint8_t fw_ver;
