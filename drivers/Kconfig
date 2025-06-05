@@ -200,8 +200,6 @@ source "drivers/mcb/Kconfig"
 
 source "drivers/perf/Kconfig"
 
-source "drivers/ras/Kconfig"
-
 source "drivers/thunderbolt/Kconfig"
 
 source "drivers/android/Kconfig"
@@ -266,8 +264,6 @@ source "drivers/samsung/pm/sec_thermistor/Kconfig" # ADDED BY LEGO AUTOMATICALLY
 source "drivers/mfd/slsi/s2mu106/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 source "drivers/input/touchscreen/novatek/nt36523_spi/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 source "drivers/battery/fuelgauge/s2mu106_fuelgauge/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/input/touchscreen/ilitek/ili9881x/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/input/touchscreen/focaltech/ft8720/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 source "drivers/sensorhub/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 source "drivers/sensorhub/debug/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 source "drivers/sensorhub/sensor/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
