@@ -227,7 +227,7 @@ static void read_from_dt(void)
 	gpexbe_devicetree_read_string("g3d_genpd_name", &dt_info.g3d_genpd_name);
 
 	/* CLOCK */
-	gpexbe_devicetree_read_u32("gpu_max_clock", &dt_info.gpu_max_clock);
+	dt_info.gpu_max_clock = 1196000;
 	gpexbe_devicetree_read_u32("gpu_min_clock", &dt_info.gpu_min_clock);
 	gpexbe_devicetree_read_u32("gpu_pmqos_cpu_cluster_num", &dt_info.gpu_pmqos_cpu_cluster_num);
 

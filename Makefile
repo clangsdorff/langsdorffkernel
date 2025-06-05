@@ -18,6 +18,22 @@ $(if $(filter __%, $(MAKECMDGOALS)), \
 PHONY := __all
 __all:
 
+# Set variables while building with aosp build system
+ARCH := arm64
+CROSS_COMPILE := aarch64-linux-gnu-
+PLATFORM_VERSION ?= 13
+ANDROID_MAJOR_VERSION ?= t
+LLVM := 1
+LLVM_IAS := 1
+
+# Export them
+export ARCH
+export CROSS_COMPILE
+export PLATFORM_VERSION
+export ANDROID_MAJOR_VERSION
+export LLVM
+export LLVM_IAS
+
 # We are using a recursive build, so we need to do a little thinking
 # to get the ordering right.
 #
@@ -545,6 +561,8 @@ export KBUILD_AFLAGS_MODULE KBUILD_CFLAGS_MODULE KBUILD_LDFLAGS_MODULE
 export KBUILD_AFLAGS_KERNEL KBUILD_CFLAGS_KERNEL
 export PAHOLE_FLAGS
 
+TARGET_SOC ?= s5e3830
+export TARGET_SOC
 # Files to ignore in find ... statements
 
 export RCS_FIND_IGNORE := \( -name SCCS -o -name BitKeeper -o -name .svn -o    \
