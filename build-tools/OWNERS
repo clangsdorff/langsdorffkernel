@@ -1,0 +1,4 @@
+include platform/build/soong:/OWNERS
+
+per-file BUILD.bazel=file:kernel/build:/OWNERS
+per-file *.bzl=file:kernel/build:/OWNERS
