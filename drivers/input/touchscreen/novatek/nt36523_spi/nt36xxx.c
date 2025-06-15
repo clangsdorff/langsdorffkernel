@@ -3769,11 +3769,9 @@ int32_t nvt_ts_suspend(struct device *dev)
 		return 0;
 	}
 
-#if NVT_TOUCH_ESD_PROTECT
 	input_info(true, &ts->client->dev,"cancel delayed work sync\n");
 	cancel_delayed_work_sync(&nvt_esd_check_work);
 	nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	input_info(true, &ts->client->dev, "%s : ed:%d, lp:%d, prox:%ld, test:%d, prox_in_aot:%d\n",
 				__func__, ts->ear_detect_mode, ts->lowpower_mode, ts->prox_power_off,
@@ -3807,7 +3805,6 @@ int32_t nvt_ts_suspend(struct device *dev)
 	cancel_delayed_work(&ts->work_print_info);
 	nvt_print_info();
 	input_info(true, &ts->client->dev, "%s : end\n", __func__);
-	mutex_lock(&ts->lock);
     nvt_ts_mode_restore(ts);
 
 	return 0;
@@ -3837,7 +3834,7 @@ void nvt_ts_early_resume(struct device *dev)
 #endif
 
 		nvt_irq_enable(false);
-
+		mutex_lock(&ts->lock);
 		ts->power_status = LP_MODE_EXIT;
 		nvt_ts_lcd_reset_ctrl(false);
 		mutex_unlock(&ts->lock);
