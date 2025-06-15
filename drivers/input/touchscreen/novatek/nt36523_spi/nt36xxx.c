@@ -3749,7 +3749,6 @@ return:
 int32_t nvt_ts_suspend(struct device *dev)
 {
 	struct nvt_ts_data *ts = dev_get_drvdata(dev);
-    nvt_enable_gesture_mode(ts);
 	int enter_force_ed_mode = 0;
 #if SEC_LPWG_DUMP
 	u8 lpwg_dump[5] = {0x3, 0x0, 0x0, 0x0, 0x0};
