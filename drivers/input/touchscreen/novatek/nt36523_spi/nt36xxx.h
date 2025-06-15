@@ -26,7 +26,6 @@
 #include <linux/of.h>
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
-#include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 #include "../../../sec_input/sec_input.h"
 #include "nt36xxx_mem_map.h"
@@ -35,8 +34,6 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/spi-mt65xx.h>
-#include <linux/input/stui_inf.h>
-#include <linux/sec_panel_notifier.h>
 #include <linux/panel_notify.h>
 #include <linux/vbus_notifier.h>
 #include "nt36xxx_mem_map.h"
