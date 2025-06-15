@@ -30,7 +30,6 @@
 #include <drm/drm_panel.h>
 #include <linux/notifier.h>
 #include <linux/fb.h>
-#include <linux/earlysuspend.h>
 #include "nt36xxx.h"
 #include <linux/jiffies.h>
 
