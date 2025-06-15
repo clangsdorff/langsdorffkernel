@@ -27,20 +27,12 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-
-#if defined(CONFIG_DRM_PANEL)
 #include <drm/drm_panel.h>
-#elif defined(CONFIG_FB)
 #include <linux/notifier.h>
 #include <linux/fb.h>
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
-#endif
-
 #include "nt36xxx.h"
-#if NVT_TOUCH_ESD_PROTECT
 #include <linux/jiffies.h>
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 #if defined(CONFIG_NOVATEK_TRUSTED_TOUCH)
 #include <linux/atomic.h>
@@ -1727,7 +1719,7 @@ static int32_t nvt_flash_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations nvt_flash_fops = {
+static const struct proc_ops nvt_flash_fops = {
 	.open = nvt_flash_open,
 	.release = nvt_flash_close,
 	.read = nvt_flash_read,
