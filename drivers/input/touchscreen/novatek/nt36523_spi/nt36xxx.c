@@ -3749,6 +3749,7 @@ return:
 int32_t nvt_ts_suspend(struct device *dev)
 {
 	struct nvt_ts_data *ts = dev_get_drvdata(dev);
+    nvt_enable_gesture_mode(ts);
 	int enter_force_ed_mode = 0;
 #if SEC_LPWG_DUMP
 	u8 lpwg_dump[5] = {0x3, 0x0, 0x0, 0x0, 0x0};
@@ -3806,6 +3807,7 @@ int32_t nvt_ts_suspend(struct device *dev)
 
 	cancel_delayed_work(&ts->work_print_info);
 	nvt_print_info();
+	nvt_enable_gesture_mode(ts);
 
 	input_info(true, &ts->client->dev, "%s : end\n", __func__);
 
@@ -3881,7 +3883,8 @@ int32_t nvt_ts_resume(struct device *dev)
     } else {
         pinctrl_configure(ts, true);
     }
-
+	nvt_bootloader_reset();
+	nvt_sw_reset();
     ts->prox_power_off = 0;
     ts->power_status = POWER_ON_STATUS;
 
