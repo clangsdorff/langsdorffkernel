@@ -3768,10 +3768,11 @@ int32_t nvt_ts_suspend(struct device *dev)
 		input_info(true, &ts->client->dev, "Touch is already suspend(%d)\n", ts->power_status);
 		return 0;
 	}
-
+#if NVT_TOUCH_ESD_PROTECT
 	input_info(true, &ts->client->dev,"cancel delayed work sync\n");
 	cancel_delayed_work_sync(&nvt_esd_check_work);
 	nvt_esd_check_enable(false);
+#endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	input_info(true, &ts->client->dev, "%s : ed:%d, lp:%d, prox:%ld, test:%d, prox_in_aot:%d\n",
 				__func__, ts->ear_detect_mode, ts->lowpower_mode, ts->prox_power_off,
