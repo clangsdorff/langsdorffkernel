@@ -27,25 +27,19 @@
 #include <linux/input/mt.h>
 
 #include "nt36xxx.h"
-#if NVT_TOUCH_ESD_PROTECT
 #include <linux/jiffies.h>
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 int nvt_ts_sec_fn_init(struct nvt_ts_data *ts);
 void nvt_ts_sec_fn_remove(struct nvt_ts_data *ts);
 
-#if NVT_TOUCH_ESD_PROTECT
 static struct delayed_work nvt_esd_check_work;
 static struct workqueue_struct *nvt_esd_check_wq;
 static unsigned long irq_timer = 0;
 uint8_t esd_check = false;
 uint8_t esd_retry = 0;
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
 
-#if NVT_TOUCH_EXT_PROC
 extern int32_t nvt_extra_proc_init(void);
 extern void nvt_extra_proc_deinit(void);
-#endif
 
 
 
@@ -63,7 +57,6 @@ const uint16_t touch_key_array[TOUCH_KEY_NUM] = {
 };
 #endif
 
-#if WAKEUP_GESTURE
 const uint16_t gesture_key_array[] = {
 	KEY_WAKEUP,  //GESTURE_WORD_C
 	KEY_WAKEUP,  //GESTURE_WORD_W
@@ -93,7 +86,6 @@ const uint16_t gesture_key_array[] = {
 #define GESTURE_SLIDE_DOWN      22
 #define GESTURE_SLIDE_LEFT      23
 #define GESTURE_SLIDE_RIGHT     24
-#endif
 
 #if IS_ENABLED(CONFIG_MTK_SPI)
 const struct mt_chip_conf spi_ctrdata = {
@@ -143,7 +135,6 @@ const struct mtk_chip_config spi_ctrdata = {
 #endif
 #endif
 
-#if IS_ENABLED(CONFIG_INPUT_SEC_SECURE_TOUCH)
 static irqreturn_t nvt_ts_work_func(int irq, void *data);
 irqreturn_t secure_filter_interrupt(struct nvt_ts_data *ts)
 {
@@ -333,7 +324,6 @@ static struct attribute *secure_attr[] = {
 static struct attribute_group secure_attr_group = {
 	.attrs = secure_attr,
 };
-#endif
 
 /*******************************************************
 Description:
@@ -1252,8 +1242,6 @@ static void nvt_flash_proc_deinit(void)
 }
 #endif
 
-#if WAKEUP_GESTURE
-
 /* customized gesture id */
 #define DATA_PROTOCOL           30
 
@@ -1345,7 +1333,6 @@ void nvt_ts_wakeup_gesture_report(uint8_t *data)
 		input_sync(ts->input_dev);
 	}
 }
-#endif
 
 int pinctrl_configure(struct nvt_ts_data *ts, bool enable)
 {
@@ -1748,7 +1735,6 @@ static uint8_t nvt_fw_recovery(uint8_t *point_data)
 	return detected;
 }
 
-#if NVT_TOUCH_ESD_PROTECT
 void nvt_esd_check_enable(uint8_t enable)
 {
 	/* update interrupt timer */
@@ -1785,7 +1771,6 @@ static void nvt_esd_check_func(struct work_struct *work)
 	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
 			msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
 }
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 #if NVT_TOUCH_WDT_RECOVERY
 static uint8_t recovery_cnt = 0;
