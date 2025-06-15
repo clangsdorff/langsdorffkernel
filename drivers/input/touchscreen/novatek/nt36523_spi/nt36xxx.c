@@ -3881,8 +3881,6 @@ int32_t nvt_ts_resume(struct device *dev)
     } else {
         pinctrl_configure(ts, true);
     }
-	nvt_bootloader_reset();
-	nvt_sw_reset();
     ts->prox_power_off = 0;
     ts->power_status = POWER_ON_STATUS;
 
