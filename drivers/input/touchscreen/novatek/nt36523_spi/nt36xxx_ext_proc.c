@@ -1,8 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010 - 2018 Novatek, Inc.
  *
- * $Revision: 52752 $
- * $Date: 2019-11-06 18:05:46 +0800 (?±ä¸‰, 06 ?ä??? 2019) $
+ * $Revision: 47247 $
+ * $Date: 2019-07-10 10:41:36 +0800 (Wed, 10 Jul 2019) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +29,7 @@
 #define NVT_RAW "nvt_raw"
 #define NVT_DIFF "nvt_diff"
 
-#define BUS_TRANSFER_LENGTH  256
+#define BUS_TRANSFER_LENGTH  64
 
 #define NORMAL_MODE 0x00
 #define TEST_MODE_1 0x21
@@ -57,17 +58,17 @@ void nvt_change_mode(uint8_t mode)
 	uint8_t buf[8] = {0};
 
 	//---set xdata index to EVENT BUF ADDR---
-	nvt_set_page(ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HOST_CMD);
+	nvt_set_page(I2C_FW_Address, ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HOST_CMD);
 
 	//---set mode---
 	buf[0] = EVENT_MAP_HOST_CMD;
 	buf[1] = mode;
-	CTP_SPI_WRITE(ts->client, buf, 2);
+	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
 
 	if (mode == NORMAL_MODE) {
 		buf[0] = EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE;
 		buf[1] = HANDSHAKING_HOST_READY;
-		CTP_SPI_WRITE(ts->client, buf, 2);
+		CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
 		msleep(20);
 	}
 }
@@ -84,14 +85,14 @@ uint8_t nvt_get_fw_pipe(void)
 	uint8_t buf[8]= {0};
 
 	//---set xdata index to EVENT BUF ADDR---
-	nvt_set_page(ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE);
+	nvt_set_page(I2C_FW_Address, ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE);
 
 	//---read fw status---
 	buf[0] = EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE;
 	buf[1] = 0x00;
-	CTP_SPI_READ(ts->client, buf, 2);
+	CTP_I2C_READ(ts->client, I2C_FW_Address, buf, 2);
 
-	//pr_info("FW pipe=%d, buf[1]=0x%02X\n", (buf[1]&0x01), buf[1]);
+	//NVT_LOG("FW pipe=%d, buf[1]=0x%02X\n", (buf[1]&0x01), buf[1]);
 
 	return (buf[1] & 0x01);
 }
@@ -108,7 +109,7 @@ void nvt_read_mdata(uint32_t xdata_addr, uint32_t xdata_btn_addr)
 	int32_t i = 0;
 	int32_t j = 0;
 	int32_t k = 0;
-	uint8_t buf[BUS_TRANSFER_LENGTH + 2] = {0};
+	uint8_t buf[BUS_TRANSFER_LENGTH + 1] = {0};
 	uint32_t head_addr = 0;
 	int32_t dummy_len = 0;
 	int32_t data_len = 0;
@@ -117,7 +118,7 @@ void nvt_read_mdata(uint32_t xdata_addr, uint32_t xdata_btn_addr)
 	//---set xdata sector address & length---
 	head_addr = xdata_addr - (xdata_addr % XDATA_SECTOR_SIZE);
 	dummy_len = xdata_addr - head_addr;
-	data_len = ts->platdata->x_num * ts->platdata->y_num * 2;
+	data_len = ts->x_num * ts->y_num * 2;
 	residual_len = (head_addr + dummy_len + data_len) % XDATA_SECTOR_SIZE;
 
 	//printk("head_addr=0x%05X, dummy_len=0x%05X, data_len=0x%05X, residual_len=0x%05X\n", head_addr, dummy_len, data_len, residual_len);
@@ -125,13 +126,13 @@ void nvt_read_mdata(uint32_t xdata_addr, uint32_t xdata_btn_addr)
 	//read xdata : step 1
 	for (i = 0; i < ((dummy_len + data_len) / XDATA_SECTOR_SIZE); i++) {
 		//---change xdata index---
-		nvt_set_page(head_addr + XDATA_SECTOR_SIZE * i);
+		nvt_set_page(I2C_FW_Address, head_addr + XDATA_SECTOR_SIZE * i);
 
 		//---read xdata by BUS_TRANSFER_LENGTH
 		for (j = 0; j < (XDATA_SECTOR_SIZE / BUS_TRANSFER_LENGTH); j++) {
 			//---read data---
 			buf[0] = BUS_TRANSFER_LENGTH * j;
-			CTP_SPI_READ(ts->client, buf, BUS_TRANSFER_LENGTH + 1);
+			CTP_I2C_READ(ts->client, I2C_FW_Address, buf, BUS_TRANSFER_LENGTH + 1);
 
 			//---copy buf to xdata_tmp---
 			for (k = 0; k < BUS_TRANSFER_LENGTH; k++) {
@@ -145,13 +146,13 @@ void nvt_read_mdata(uint32_t xdata_addr, uint32_t xdata_btn_addr)
 	//read xdata : step2
 	if (residual_len != 0) {
 		//---change xdata index---
-		nvt_set_page(xdata_addr + data_len - residual_len);
+		nvt_set_page(I2C_FW_Address, xdata_addr + data_len - residual_len);
 
 		//---read xdata by BUS_TRANSFER_LENGTH
 		for (j = 0; j < (residual_len / BUS_TRANSFER_LENGTH + 1); j++) {
 			//---read data---
 			buf[0] = BUS_TRANSFER_LENGTH * j;
-			CTP_SPI_READ(ts->client, buf, BUS_TRANSFER_LENGTH + 1);
+			CTP_I2C_READ(ts->client, I2C_FW_Address, buf, BUS_TRANSFER_LENGTH + 1);
 
 			//---copy buf to xdata_tmp---
 			for (k = 0; k < BUS_TRANSFER_LENGTH; k++) {
@@ -170,20 +171,20 @@ void nvt_read_mdata(uint32_t xdata_addr, uint32_t xdata_btn_addr)
 #if TOUCH_KEY_NUM > 0
 	//read button xdata : step3
 	//---change xdata index---
-	nvt_set_page(xdata_btn_addr);
+	nvt_set_page(I2C_FW_Address, xdata_btn_addr);
 
 	//---read data---
 	buf[0] = (xdata_btn_addr & 0xFF);
-	CTP_SPI_READ(ts->client, buf, (TOUCH_KEY_NUM * 2 + 1));
+	CTP_I2C_READ(ts->client, I2C_FW_Address, buf, (TOUCH_KEY_NUM * 2 + 1));
 
 	//---2bytes-to-1data---
 	for (i = 0; i < TOUCH_KEY_NUM; i++) {
-		xdata[ts->platdata->x_num * ts->platdata->y_num + i] = (int16_t)(buf[1 + i * 2] + 256 * buf[1 + i * 2 + 1]);
+		xdata[ts->x_num * ts->y_num + i] = (int16_t)(buf[1 + i * 2] + 256 * buf[1 + i * 2 + 1]);
 	}
 #endif
 
 	//---set xdata index to EVENT BUF ADDR---
-	nvt_set_page(ts->mmap->EVENT_BUF_ADDR);
+	nvt_set_page(I2C_FW_Address, ts->mmap->EVENT_BUF_ADDR);
 }
 
 /*******************************************************
@@ -195,9 +196,9 @@ return:
 *******************************************************/
 void nvt_get_mdata(int32_t *buf, uint8_t *m_x_num, uint8_t *m_y_num)
 {
-    *m_x_num = ts->platdata->x_num;
-    *m_y_num = ts->platdata->y_num;
-    memcpy(buf, xdata, ((ts->platdata->x_num * ts->platdata->y_num + TOUCH_KEY_NUM) * sizeof(int32_t)));
+    *m_x_num = ts->x_num;
+    *m_y_num = ts->y_num;
+    memcpy(buf, xdata, ((ts->x_num * ts->y_num + TOUCH_KEY_NUM) * sizeof(int32_t)));
 }
 
 /*******************************************************
@@ -209,7 +210,7 @@ return:
 *******************************************************/
 static int32_t c_fw_version_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "fw_ver=%d, x_num=%d, y_num=%d, button_num=%d\n", ts->fw_ver, ts->platdata->x_num, ts->platdata->y_num, ts->max_button_num);
+	seq_printf(m, "fw_ver=%d, x_num=%d, y_num=%d, button_num=%d\n", ts->fw_ver, ts->x_num, ts->y_num, ts->max_button_num);
 	return 0;
 }
 
@@ -226,16 +227,16 @@ static int32_t c_show(struct seq_file *m, void *v)
 	int32_t i = 0;
 	int32_t j = 0;
 
-	for (i = 0; i < ts->platdata->y_num; i++) {
-		for (j = 0; j < ts->platdata->x_num; j++) {
-			seq_printf(m, "%5d, ", xdata[i * ts->platdata->x_num + j]);
+	for (i = 0; i < ts->y_num; i++) {
+		for (j = 0; j < ts->x_num; j++) {
+			seq_printf(m, "%5d, ", xdata[i * ts->x_num + j]);
 		}
 		seq_puts(m, "\n");
 	}
 
 #if TOUCH_KEY_NUM > 0
 	for (i = 0; i < TOUCH_KEY_NUM; i++) {
-		seq_printf(m, "%5d, ", xdata[ts->platdata->x_num * ts->platdata->y_num + i]);
+		seq_printf(m, "%5d, ", xdata[ts->x_num * ts->y_num + i]);
 	}
 	seq_puts(m, "\n");
 #endif
@@ -315,7 +316,7 @@ static int32_t nvt_fw_version_open(struct inode *inode, struct file *file)
 		return -ERESTARTSYS;
 	}
 
-	input_info(true, &ts->client->dev, "%s  ++\n", __func__);
+	NVT_LOG("++\n");
 
 #if NVT_TOUCH_ESD_PROTECT
 	nvt_esd_check_enable(false);
@@ -328,26 +329,18 @@ static int32_t nvt_fw_version_open(struct inode *inode, struct file *file)
 
 	mutex_unlock(&ts->lock);
 
-	input_info(true, &ts->client->dev, "%s  --\n", __func__);
+	NVT_LOG("--\n");
 
 	return seq_open(file, &nvt_fw_version_seq_ops);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
-static const struct proc_ops nvt_fw_version_fops = {
-	.proc_open = nvt_fw_version_open,
-	.proc_read = seq_read,
-	.proc_lseek = seq_lseek,
-	.proc_release = seq_release,
-};
-#else
-const struct file_operations nvt_fw_version_fops = {
+static const struct file_operations nvt_fw_version_fops = {
+	.owner = THIS_MODULE,
 	.open = nvt_fw_version_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = seq_release,
 };
-#endif
 
 /*******************************************************
 Description:
@@ -362,7 +355,7 @@ static int32_t nvt_baseline_open(struct inode *inode, struct file *file)
 		return -ERESTARTSYS;
 	}
 
-	input_info(true, &ts->client->dev, "%s  ++\n", __func__);
+	NVT_LOG("++\n");
 
 #if NVT_TOUCH_ESD_PROTECT
 	nvt_esd_check_enable(false);
@@ -391,26 +384,18 @@ static int32_t nvt_baseline_open(struct inode *inode, struct file *file)
 
 	mutex_unlock(&ts->lock);
 
-	input_info(true, &ts->client->dev, "%s  --\n", __func__);
+	NVT_LOG("--\n");
 
 	return seq_open(file, &nvt_seq_ops);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
-static const struct proc_ops nvt_baseline_fops = {
-	.proc_open = nvt_baseline_open,
-	.proc_read = seq_read,
-	.proc_lseek = seq_lseek,
-	.proc_release = seq_release,
-};
-#else
-const struct file_operations nvt_baseline_fops = {
+static const struct file_operations nvt_baseline_fops = {
+	.owner = THIS_MODULE,
 	.open = nvt_baseline_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = seq_release,
 };
-#endif
 
 /*******************************************************
 Description:
@@ -425,7 +410,7 @@ static int32_t nvt_raw_open(struct inode *inode, struct file *file)
 		return -ERESTARTSYS;
 	}
 
-	input_info(true, &ts->client->dev, "%s  ++\n", __func__);
+	NVT_LOG("++\n");
 
 #if NVT_TOUCH_ESD_PROTECT
 	nvt_esd_check_enable(false);
@@ -457,26 +442,18 @@ static int32_t nvt_raw_open(struct inode *inode, struct file *file)
 
 	mutex_unlock(&ts->lock);
 
-	input_info(true, &ts->client->dev, "%s  --\n", __func__);
+	NVT_LOG("--\n");
 
 	return seq_open(file, &nvt_seq_ops);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
-static const struct proc_ops nvt_raw_fops = {
-	.proc_open = nvt_raw_open,
-	.proc_read = seq_read,
-	.proc_lseek = seq_lseek,
-	.proc_release = seq_release,
-};
-#else
-const struct file_operations nvt_raw_fops = {
+static const struct file_operations nvt_raw_fops = {
+	.owner = THIS_MODULE,
 	.open = nvt_raw_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = seq_release,
 };
-#endif
 
 /*******************************************************
 Description:
@@ -491,7 +468,7 @@ static int32_t nvt_diff_open(struct inode *inode, struct file *file)
 		return -ERESTARTSYS;
 	}
 
-	input_info(true, &ts->client->dev, "%s  ++\n", __func__);
+	NVT_LOG("++\n");
 
 #if NVT_TOUCH_ESD_PROTECT
 	nvt_esd_check_enable(false);
@@ -523,26 +500,18 @@ static int32_t nvt_diff_open(struct inode *inode, struct file *file)
 
 	mutex_unlock(&ts->lock);
 
-	input_info(true, &ts->client->dev, "%s  --\n", __func__);
+	NVT_LOG("--\n");
 
 	return seq_open(file, &nvt_seq_ops);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
-static const struct proc_ops nvt_diff_fops = {
-	.proc_open = nvt_diff_open,
-	.proc_read = seq_read,
-	.proc_lseek = seq_lseek,
-	.proc_release = seq_release,
-};
-#else
-const struct file_operations nvt_diff_fops = {
+static const struct file_operations nvt_diff_fops = {
+	.owner = THIS_MODULE,
 	.open = nvt_diff_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = seq_release,
 };
-#endif
 
 /*******************************************************
 Description:
@@ -556,34 +525,34 @@ int32_t nvt_extra_proc_init(void)
 {
 	NVT_proc_fw_version_entry = proc_create(NVT_FW_VERSION, 0444, NULL,&nvt_fw_version_fops);
 	if (NVT_proc_fw_version_entry == NULL) {
-		input_err(true, &ts->client->dev, "%s : create proc/%s Failed!\n", __func__, NVT_FW_VERSION);
+		NVT_ERR("create proc/%s Failed!\n", NVT_FW_VERSION);
 		return -ENOMEM;
 	} else {
-		input_info(true, &ts->client->dev, "%s: create proc/%s Succeeded!\n", __func__, NVT_FW_VERSION);
+		NVT_LOG("create proc/%s Succeeded!\n", NVT_FW_VERSION);
 	}
 
 	NVT_proc_baseline_entry = proc_create(NVT_BASELINE, 0444, NULL,&nvt_baseline_fops);
 	if (NVT_proc_baseline_entry == NULL) {
-		input_err(true, &ts->client->dev, "%s : create proc/%s Failed!\n", __func__, NVT_BASELINE);
+		NVT_ERR("create proc/%s Failed!\n", NVT_BASELINE);
 		return -ENOMEM;
 	} else {
-		input_info(true, &ts->client->dev, "%s: create proc/%s Succeeded!\n", __func__, NVT_BASELINE);
+		NVT_LOG("create proc/%s Succeeded!\n", NVT_BASELINE);
 	}
 
 	NVT_proc_raw_entry = proc_create(NVT_RAW, 0444, NULL,&nvt_raw_fops);
 	if (NVT_proc_raw_entry == NULL) {
-		input_err(true, &ts->client->dev, "%s : create proc/%s Failed!\n", __func__, NVT_RAW);
+		NVT_ERR("create proc/%s Failed!\n", NVT_RAW);
 		return -ENOMEM;
 	} else {
-		input_info(true, &ts->client->dev, "%s: create proc/%s Succeeded!\n", __func__, NVT_RAW);
+		NVT_LOG("create proc/%s Succeeded!\n", NVT_RAW);
 	}
 
 	NVT_proc_diff_entry = proc_create(NVT_DIFF, 0444, NULL,&nvt_diff_fops);
 	if (NVT_proc_diff_entry == NULL) {
-		input_err(true, &ts->client->dev, "%s : create proc/%s Failed!\n", __func__, NVT_DIFF);
+		NVT_ERR("create proc/%s Failed!\n", NVT_DIFF);
 		return -ENOMEM;
 	} else {
-		input_info(true, &ts->client->dev, "%s: create proc/%s Succeeded!\n", __func__, NVT_DIFF);
+		NVT_LOG("create proc/%s Succeeded!\n", NVT_DIFF);
 	}
 
 	return 0;
@@ -602,25 +571,25 @@ void nvt_extra_proc_deinit(void)
 	if (NVT_proc_fw_version_entry != NULL) {
 		remove_proc_entry(NVT_FW_VERSION, NULL);
 		NVT_proc_fw_version_entry = NULL;
-		input_info(true, &ts->client->dev, "%s: Removed /proc/%s\n", __func__, NVT_FW_VERSION);
+		NVT_LOG("Removed /proc/%s\n", NVT_FW_VERSION);
 	}
 
 	if (NVT_proc_baseline_entry != NULL) {
 		remove_proc_entry(NVT_BASELINE, NULL);
 		NVT_proc_baseline_entry = NULL;
-		input_info(true, &ts->client->dev, "%s: Removed /proc/%s\n", __func__, NVT_BASELINE);
+		NVT_LOG("Removed /proc/%s\n", NVT_BASELINE);
 	}
 
 	if (NVT_proc_raw_entry != NULL) {
 		remove_proc_entry(NVT_RAW, NULL);
 		NVT_proc_raw_entry = NULL;
-		input_info(true, &ts->client->dev, "%s: Removed /proc/%s\n", __func__, NVT_RAW);
+		NVT_LOG("Removed /proc/%s\n", NVT_RAW);
 	}
 
 	if (NVT_proc_diff_entry != NULL) {
 		remove_proc_entry(NVT_DIFF, NULL);
 		NVT_proc_diff_entry = NULL;
-		input_info(true, &ts->client->dev, "%s: Removed /proc/%s\n", __func__, NVT_DIFF);
+		NVT_LOG("Removed /proc/%s\n", NVT_DIFF);
 	}
 }
 #endif

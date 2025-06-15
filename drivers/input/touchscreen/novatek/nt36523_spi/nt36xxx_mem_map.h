@@ -1,8 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2010 - 2018 Novatek, Inc.
  *
- * $Revision: 49361 $
- * $Date: 2019-08-19 16:30:57 +0800 (週一, 19 八月 2019) $
+ * $Revision: 48764 $
+ * $Date: 2019-08-08 14:52:12 +0800 (Thu, 08 Aug 2019) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +16,6 @@
  * more details.
  *
  */
-
 #define CHIP_VER_TRIM_ADDR 0x3F004
 #define CHIP_VER_TRIM_OLD_ADDR 0x1F64E
 
@@ -33,90 +33,11 @@ struct nvt_ts_mem_map {
 	uint32_t DIFF_BTN_PIPE1_ADDR;
 	uint32_t READ_FLASH_CHECKSUM_ADDR;
 	uint32_t RW_FLASH_DATA_ADDR;
-	/* FDM selftest */
-	uint32_t DOZE_GM_S1D_SCAN_RAW_ADDR;
-	/* FW History */
-	uint32_t MMAP_HISTORY_EVENT0;
-	uint32_t MMAP_HISTORY_EVENT1;
-	/* Phase 2 Host Download */
-	uint32_t BOOT_RDY_ADDR;
-	uint32_t POR_CD_ADDR;
-	/* BLD CRC */
-	uint32_t BLD_LENGTH_ADDR;
-	uint32_t ILM_LENGTH_ADDR;
-	uint32_t DLM_LENGTH_ADDR;
-	uint32_t BLD_DES_ADDR;
-	uint32_t ILM_DES_ADDR;
-	uint32_t DLM_DES_ADDR;
-	uint32_t G_ILM_CHECKSUM_ADDR;
-	uint32_t G_DLM_CHECKSUM_ADDR;
-	uint32_t R_ILM_CHECKSUM_ADDR;
-	uint32_t R_DLM_CHECKSUM_ADDR;
-	uint32_t BLD_CRC_EN_ADDR;
-	uint32_t DMA_CRC_EN_ADDR;
-	uint32_t BLD_ILM_DLM_CRC_ADDR;
-	uint32_t DMA_CRC_FLAG_ADDR;
-	/* SRAM Test */
-	uint32_t MBT_MUX_CTL0;
-	uint32_t MBT_MUX_CTL1;
-	uint32_t MBT_MUX_CTL2;
-	uint32_t MBT_DB;
-	uint32_t MBT_MODE;
-	uint32_t MBT_EN;
-	uint32_t MBT_OP;
-	uint32_t MBT_STATUS;
-	//LPWG DUMP
-	uint32_t LPWG_DUMP_ADDR;
 };
 
 struct nvt_ts_hw_info {
 	uint8_t carrier_system;
 	uint8_t hw_crc;
-};
-
-static const struct nvt_ts_mem_map NT36528_memory_map = {
-	.EVENT_BUF_ADDR           = 0x22D00,
-	.RAW_PIPE0_ADDR           = 0x24000,
-	.RAW_PIPE1_ADDR           = 0x24000,
-	.BASELINE_ADDR            = 0x21880,
-	.BASELINE_BTN_ADDR        = 0,
-	.DIFF_PIPE0_ADDR          = 0x20B00,
-	.DIFF_PIPE1_ADDR          = 0x24B00,
-	.RAW_BTN_PIPE0_ADDR       = 0,
-	.RAW_BTN_PIPE1_ADDR       = 0,
-	.DIFF_BTN_PIPE0_ADDR      = 0,
-	.DIFF_BTN_PIPE1_ADDR      = 0,
-	.READ_FLASH_CHECKSUM_ADDR = 0x24000,
-	.RW_FLASH_DATA_ADDR       = 0x24002,
-	/* FW History */
-	.MMAP_HISTORY_EVENT0      = 0x23768,
-	.MMAP_HISTORY_EVENT1      = 0x237A8,
-	/* Phase 2 Host Download */
-	.BOOT_RDY_ADDR            = 0x3F10D,
-	/* BLD CRC */
-	.BLD_LENGTH_ADDR          = 0x3F138,	//0x3F138 ~ 0x3F13A	(3 bytes)
-	.ILM_LENGTH_ADDR          = 0x3F118,	//0x3F118 ~ 0x3F11A	(3 bytes)
-	.DLM_LENGTH_ADDR          = 0x3F130,	//0x3F130 ~ 0x3F132	(3 bytes)
-	.BLD_DES_ADDR             = 0x3F114,	//0x3F114 ~ 0x3F116	(3 bytes)
-	.ILM_DES_ADDR             = 0x3F128,	//0x3F128 ~ 0x3F12A	(3 bytes)
-	.DLM_DES_ADDR             = 0x3F12C,	//0x3F12C ~ 0x3F12E	(3 bytes)
-	.G_ILM_CHECKSUM_ADDR      = 0x3F100,	//0x3F100 ~ 0x3F103	(4 bytes)
-	.G_DLM_CHECKSUM_ADDR      = 0x3F104,	//0x3F104 ~ 0x3F107	(4 bytes)
-	.R_ILM_CHECKSUM_ADDR      = 0x3F120,	//0x3F120 ~ 0x3F123 (4 bytes)
-	.R_DLM_CHECKSUM_ADDR      = 0x3F124,	//0x3F124 ~ 0x3F127 (4 bytes)
-	.BLD_CRC_EN_ADDR          = 0x3F30E,
-	.DMA_CRC_EN_ADDR          = 0x3F136,
-	.BLD_ILM_DLM_CRC_ADDR     = 0x3F133,
-	.DMA_CRC_FLAG_ADDR        = 0x3F134,
-	/* SRAM Test */
-	.MBT_MUX_CTL0		= 0x3F2C0,
-	.MBT_MUX_CTL1		= 0x3F2C1,
-	.MBT_MUX_CTL2		= 0x3F2C2,
-	.MBT_DB 			= 0x3F2C3,
-	.MBT_MODE			= 0x3F2C7,
-	.MBT_EN 			= 0x3F2C8,
-	.MBT_OP 			= 0x3F2C9,
-	.MBT_STATUS 		= 0x3F2CE,
 };
 
 static const struct nvt_ts_mem_map NT36526_memory_map = {
@@ -133,37 +54,7 @@ static const struct nvt_ts_mem_map NT36526_memory_map = {
 	.DIFF_BTN_PIPE1_ADDR      = 0,
 	.READ_FLASH_CHECKSUM_ADDR = 0x24000,
 	.RW_FLASH_DATA_ADDR       = 0x24002,
-	/* FW History */
-	.MMAP_HISTORY_EVENT0	  = 0x23C38,
-	.MMAP_HISTORY_EVENT1	  = 0x23C78,
-	/* Phase 2 Host Download */
-	.BOOT_RDY_ADDR            = 0x3F10D,
-	/* BLD CRC */
-	.BLD_LENGTH_ADDR          = 0x3F138,	//0x3F138 ~ 0x3F13A	(3 bytes)
-	.ILM_LENGTH_ADDR          = 0x3F118,	//0x3F118 ~ 0x3F11A	(3 bytes)
-	.DLM_LENGTH_ADDR          = 0x3F130,	//0x3F130 ~ 0x3F132	(3 bytes)
-	.BLD_DES_ADDR             = 0x3F114,	//0x3F114 ~ 0x3F116	(3 bytes)
-	.ILM_DES_ADDR             = 0x3F128,	//0x3F128 ~ 0x3F12A	(3 bytes)
-	.DLM_DES_ADDR             = 0x3F12C,	//0x3F12C ~ 0x3F12E	(3 bytes)
-	.G_ILM_CHECKSUM_ADDR      = 0x3F100,	//0x3F100 ~ 0x3F103	(4 bytes)
-	.G_DLM_CHECKSUM_ADDR      = 0x3F104,	//0x3F104 ~ 0x3F107	(4 bytes)
-	.R_ILM_CHECKSUM_ADDR      = 0x3F120,	//0x3F120 ~ 0x3F123 (4 bytes)
-	.R_DLM_CHECKSUM_ADDR      = 0x3F124,	//0x3F124 ~ 0x3F127 (4 bytes)
-	.BLD_CRC_EN_ADDR          = 0x3F30E,
-	.DMA_CRC_EN_ADDR          = 0x3F136,
-	.BLD_ILM_DLM_CRC_ADDR     = 0x3F133,
-	.DMA_CRC_FLAG_ADDR        = 0x3F134,
-	/* SRAM Test */
-	.MBT_MUX_CTL0		= 0x3F2C0,
-	.MBT_MUX_CTL1		= 0x3F2C1,
-	.MBT_MUX_CTL2		= 0x3F2C2,
-	.MBT_DB				= 0x3F2C3,
-	.MBT_MODE			= 0x3F2C7,
-	.MBT_EN				= 0x3F2C8,
-	.MBT_OP				= 0x3F2C9,
-	.MBT_STATUS			= 0x3F2CE,
 };
-
 
 static const struct nvt_ts_mem_map NT36675_memory_map = {
 	.EVENT_BUF_ADDR           = 0x22D00,
@@ -179,41 +70,7 @@ static const struct nvt_ts_mem_map NT36675_memory_map = {
 	.DIFF_BTN_PIPE1_ADDR      = 0,
 	.READ_FLASH_CHECKSUM_ADDR = 0x24000,
 	.RW_FLASH_DATA_ADDR       = 0x24002,
-	/* FDM selftest */
-	.DOZE_GM_S1D_SCAN_RAW_ADDR = 0x22900,
-	/* FW History */
-	.MMAP_HISTORY_EVENT0	  = 0x23D10,
-	.MMAP_HISTORY_EVENT1	  = 0x23D50,
-	/* Phase 2 Host Download */
-	.BOOT_RDY_ADDR            = 0x3F10D,
-	/* BLD CRC */
-	.BLD_LENGTH_ADDR          = 0x3F138,	//0x3F138 ~ 0x3F13A	(3 bytes)
-	.ILM_LENGTH_ADDR          = 0x3F118,	//0x3F118 ~ 0x3F11A	(3 bytes)
-	.DLM_LENGTH_ADDR          = 0x3F130,	//0x3F130 ~ 0x3F132	(3 bytes)
-	.BLD_DES_ADDR             = 0x3F114,	//0x3F114 ~ 0x3F116	(3 bytes)
-	.ILM_DES_ADDR             = 0x3F128,	//0x3F128 ~ 0x3F12A	(3 bytes)
-	.DLM_DES_ADDR             = 0x3F12C,	//0x3F12C ~ 0x3F12E	(3 bytes)
-	.G_ILM_CHECKSUM_ADDR      = 0x3F100,	//0x3F100 ~ 0x3F103	(4 bytes)
-	.G_DLM_CHECKSUM_ADDR      = 0x3F104,	//0x3F104 ~ 0x3F107	(4 bytes)
-	.R_ILM_CHECKSUM_ADDR      = 0x3F120,	//0x3F120 ~ 0x3F123 (4 bytes)
-	.R_DLM_CHECKSUM_ADDR      = 0x3F124,	//0x3F124 ~ 0x3F127 (4 bytes)
-	.BLD_CRC_EN_ADDR          = 0x3F30E,
-	.DMA_CRC_EN_ADDR          = 0x3F136,
-	.BLD_ILM_DLM_CRC_ADDR     = 0x3F133,
-	.DMA_CRC_FLAG_ADDR        = 0x3F134,
-	/* SRAM Test */
-	.MBT_MUX_CTL0		= 0x3F2C0,
-	.MBT_MUX_CTL1		= 0x3F2C1,
-	.MBT_MUX_CTL2		= 0x3F2C2,
-	.MBT_DB				= 0x3F2C3,
-	.MBT_MODE			= 0x3F2C7,
-	.MBT_EN				= 0x3F2C8,
-	.MBT_OP				= 0x3F2C9,
-	.MBT_STATUS			= 0x3F2CE,
-	//LPWG DUMP
-	.LPWG_DUMP_ADDR		= 0x26AA0,
 };
-
 
 static const struct nvt_ts_mem_map NT36672A_memory_map = {
 	.EVENT_BUF_ADDR           = 0x21C00,
@@ -229,39 +86,6 @@ static const struct nvt_ts_mem_map NT36672A_memory_map = {
 	.DIFF_BTN_PIPE1_ADDR      = 0x23BF0,
 	.READ_FLASH_CHECKSUM_ADDR = 0x24000,
 	.RW_FLASH_DATA_ADDR       = 0x24002,
-	/* FDM selftest */
-	.DOZE_GM_S1D_SCAN_RAW_ADDR = 0x23C1C,
-	/* FW History */
-	.MMAP_HISTORY_EVENT0	  = 0x218D6,
-	.MMAP_HISTORY_EVENT1	  = 0x24B2D,
-	/* Phase 2 Host Download */
-	.BOOT_RDY_ADDR            = 0x3F10D,
-	/* BLD CRC */
-	.BLD_LENGTH_ADDR          = 0x3F10E,	//0x3F10E ~ 0x3F10F	(2 bytes)
-	.ILM_LENGTH_ADDR          = 0x3F118,	//0x3F118 ~ 0x3F119	(2 bytes)
-	.DLM_LENGTH_ADDR          = 0x3F130,	//0x3F130 ~ 0x3F131	(2 bytes)
-	.BLD_DES_ADDR             = 0x3F114,	//0x3F114 ~ 0x3F116	(3 bytes)
-	.ILM_DES_ADDR             = 0x3F128,	//0x3F128 ~ 0x3F12A	(3 bytes)
-	.DLM_DES_ADDR             = 0x3F12C,	//0x3F12C ~ 0x3F12E	(3 bytes)
-	.G_ILM_CHECKSUM_ADDR      = 0x3F100,	//0x3F100 ~ 0x3F103	(4 bytes)
-	.G_DLM_CHECKSUM_ADDR      = 0x3F104,	//0x3F104 ~ 0x3F107	(4 bytes)
-	.R_ILM_CHECKSUM_ADDR      = 0x3F120,	//0x3F120 ~ 0x3F123 (4 bytes)
-	.R_DLM_CHECKSUM_ADDR      = 0x3F124,	//0x3F124 ~ 0x3F127 (4 bytes)
-	.BLD_CRC_EN_ADDR          = 0x3F30E,
-	.DMA_CRC_EN_ADDR          = 0x3F132,
-	.BLD_ILM_DLM_CRC_ADDR     = 0x3F133,
-	.DMA_CRC_FLAG_ADDR        = 0x3F134,
-	/* SRAM Test */
-	.MBT_MUX_CTL0		= 0x3F2C0,
-	.MBT_MUX_CTL1		= 0x3F2C1,
-	.MBT_MUX_CTL2		= 0x3F2C2,
-	.MBT_DB				= 0x3F2C3,
-	.MBT_MODE			= 0x3F2C7,
-	.MBT_EN				= 0x3F2C8,
-	.MBT_OP				= 0x3F2C9,
-	.MBT_STATUS			= 0x3F2CE,
-	//LPWG DUMP
-	.LPWG_DUMP_ADDR		= 0x24698,
 };
 
 static const struct nvt_ts_mem_map NT36772_memory_map = {
@@ -278,16 +102,6 @@ static const struct nvt_ts_mem_map NT36772_memory_map = {
 	.DIFF_BTN_PIPE1_ADDR      = 0x12E68,
 	.READ_FLASH_CHECKSUM_ADDR = 0x14000,
 	.RW_FLASH_DATA_ADDR       = 0x14002,
-	/* FDM selftest */
-	.DOZE_GM_S1D_SCAN_RAW_ADDR = 0x143D0,
-	/* FW History */
-	.MMAP_HISTORY_EVENT0	  = 0,
-	.MMAP_HISTORY_EVENT1	  = 0,
-	/* Phase 2 Host Download */
-	.BOOT_RDY_ADDR            = 0x1F141,
-	.POR_CD_ADDR              = 0x1F61C,
-	/* BLD CRC */
-	.R_ILM_CHECKSUM_ADDR      = 0x1BF00,
 };
 
 static const struct nvt_ts_mem_map NT36525_memory_map = {
@@ -304,16 +118,6 @@ static const struct nvt_ts_mem_map NT36525_memory_map = {
 	.DIFF_BTN_PIPE1_ADDR      = 0x12AFC,
 	.READ_FLASH_CHECKSUM_ADDR = 0x14000,
 	.RW_FLASH_DATA_ADDR       = 0x14002,
-	/* FDM selftest */
-	.DOZE_GM_S1D_SCAN_RAW_ADDR = 0x12B28,
-	/* FW History */
-	.MMAP_HISTORY_EVENT0	  = 0,
-	.MMAP_HISTORY_EVENT1	  = 0,
-	/* Phase 2 Host Download */
-	.BOOT_RDY_ADDR            = 0x1F141,
-	.POR_CD_ADDR              = 0x1F61C,
-	/* BLD CRC */
-	.R_ILM_CHECKSUM_ADDR      = 0x1BF00,
 };
 
 static const struct nvt_ts_mem_map NT36676F_memory_map = {
@@ -330,16 +134,6 @@ static const struct nvt_ts_mem_map NT36676F_memory_map = {
 	.DIFF_BTN_PIPE1_ADDR      = 0x12AFC,
 	.READ_FLASH_CHECKSUM_ADDR = 0x14000,
 	.RW_FLASH_DATA_ADDR       = 0x14002,
-	/* FDM selftest */
-	.DOZE_GM_S1D_SCAN_RAW_ADDR = 0x12B28,
-	/* FW History */
-	.MMAP_HISTORY_EVENT0	  = 0,
-	.MMAP_HISTORY_EVENT1	  = 0,
-};
-
-static struct nvt_ts_hw_info NT36528_hw_info = {
-	.carrier_system = 2,
-	.hw_crc         = 2,
 };
 
 static struct nvt_ts_hw_info NT36526_hw_info = {
@@ -381,12 +175,14 @@ struct nvt_ts_trim_id_table {
 };
 
 static const struct nvt_ts_trim_id_table trim_id_table[] = {
-	{.id = {0xFF, 0xFF, 0xFF, 0x28, 0x65, 0x03}, .mask = {0, 0, 0, 1, 1, 1},
-		.mmap = &NT36528_memory_map,  .hwinfo = &NT36528_hw_info},
+	{.id = {0x20, 0xFF, 0xFF, 0x72, 0x66, 0x03}, .mask = {1, 0, 0, 1, 1, 1},
+		.mmap = &NT36675_memory_map,  .hwinfo = &NT36675_hw_info},
+	{.id = {0x00, 0xFF, 0xFF, 0x80, 0x66, 0x03}, .mask = {1, 0, 0, 1, 1, 1},
+		.mmap = &NT36675_memory_map,  .hwinfo = &NT36675_hw_info},
 	{.id = {0x0C, 0xFF, 0xFF, 0x25, 0x65, 0x03}, .mask = {1, 0, 0, 1, 1, 1},
 		.mmap = &NT36672A_memory_map, .hwinfo = &NT36672A_hw_info},
-	{.id = {0x1C, 0xFF, 0xFF, 0x25, 0x65, 0x03}, .mask = {1, 0, 0, 1, 1, 1},
-		.mmap = &NT36672A_memory_map, .hwinfo = &NT36672A_hw_info},
+	{.id = {0x0E, 0xFF, 0xFF, 0x72, 0x66, 0x03}, .mask = {1, 0, 0, 1, 1, 1},
+		.mmap = &NT36675_memory_map,  .hwinfo = &NT36675_hw_info},
 	{.id = {0x0C, 0xFF, 0xFF, 0x72, 0x66, 0x03}, .mask = {1, 0, 0, 1, 1, 1},
 		.mmap = &NT36675_memory_map,  .hwinfo = &NT36675_hw_info},
 	{.id = {0xFF, 0xFF, 0xFF, 0x26, 0x65, 0x03}, .mask = {0, 0, 0, 1, 1, 1},
