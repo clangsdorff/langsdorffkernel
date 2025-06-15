@@ -23,12 +23,28 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/uaccess.h>
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
-
+#include <linux/of.h>
+#include <linux/spi/spi.h>
+#include <linux/uaccess.h>
+#include <linux/regulator/consumer.h>
+#include <linux/delay.h>
+#include "../../../sec_input/sec_input.h"
 #include "nt36xxx_mem_map.h"
+#include "../../../sec_input/sec_secure_touch.h"
+#include <linux/atomic.h>
+#include <linux/clk.h>
+#include <linux/pm_runtime.h>
+#include <linux/platform_data/spi-mt65xx.h>
+#include <linux/input/stui_inf.h>
+#include <linux/sec_panel_notifier.h>
+#include <linux/panel_notify.h>
+#include <linux/vbus_notifier.h>
+#include "nt36xxx_mem_map.h"
+
+#define SECURE_TOUCH_ENABLE	1
+#define SECURE_TOUCH_DISABLE	0
+
+
 
 #define NVT_DEBUG 1
 
