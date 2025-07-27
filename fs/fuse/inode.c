@@ -148,12 +148,14 @@ static void fuse_evict_inode(struct inode *inode)
 	}
 }
 
-static int fuse_reconfigure(struct fs_context *fsc)
+#ifdef CONFIG_FUSE_BPF
+static void fuse_destroy_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	iput(fi->backing_inode);
 }
+#endif
 
 static int fuse_reconfigure(struct fs_context *fsc)
 {
