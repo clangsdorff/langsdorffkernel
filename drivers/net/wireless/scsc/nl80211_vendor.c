@@ -1685,6 +1685,11 @@ static int slsi_start_keepalive_offload(struct wiphy *wiphy, struct wireless_dev
 			goto exit;
 		}
 	}
+	if (!index) {
+		SLSI_WARN_NODEV("No MKEEP_ALIVE_ATTRIBUTE_ID\n");
+		r = -EINVAL;
+		goto exit;
+	}
 
 	/* Stop any existing request. This may fail if no request exists
 	  * so ignore the return value
@@ -1802,6 +1807,11 @@ static int slsi_stop_keepalive_offload(struct wiphy *wiphy, struct wireless_dev 
 			r = -EINVAL;
 			goto exit;
 		}
+	}
+	if (!index) {
+		SLSI_WARN_NODEV("No MKEEP_ALIVE_ATTRIBUTE_ID\n");
+		r = -EINVAL;
+		goto exit;
 	}
 
 	r = slsi_mlme_send_frame_mgmt(sdev, net_dev, NULL, 0, FAPI_DATAUNITDESCRIPTOR_IEEE802_3_FRAME,
