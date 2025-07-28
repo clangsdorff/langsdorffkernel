@@ -102,6 +102,9 @@ run_list(dev, "subnode_4"); pre-configured lcd_pin pinctrl at subnode_1 will be 
 
 //#define CONFIG_BOARD_DEBUG
 
+#ifndef SHOULD_CHECK_LATER
+#define SHOULD_CHECK_LATER 0
+#endif
 #define BOARD_DTS_NAME	"decon_board"
 #if IS_ENABLED(CONFIG_EXYNOS_DPU20)
 #define PANEL_DTS_NAME	"lcd_info"
@@ -1666,7 +1669,7 @@ int __init decon_board_init(void)
 }
 //core_initcall(decon_board_init);
 
-static int __init decon_board_late_initcall(void)
+static int __init __maybe_unused decon_board_late_initcall(void)
 {
 	struct platform_device *pdev = of_find_device_by_path("/panel_drv@0");
 	struct device *dev = pdev ? &(pdev->dev) : NULL;
