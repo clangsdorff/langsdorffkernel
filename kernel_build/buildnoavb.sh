@@ -1,6 +1,6 @@
 #!/bin/bash
 
-XY_VERSION="@3.0"
+XY_VERSION="@3.1"
 
 set -e
 
@@ -37,8 +37,8 @@ AVBTOOL="$(pwd)/kernel_build/avbtool"
 OUT_KERNELZIP="$(pwd)/kernel_build/langsdorff${XY_VERSION}_a14.zip"
 OUT_KERNELTAR="$(pwd)/kernel_build/langsdorff${XY_VERSION}_a14.tar"
 OUT_KERNEL="$OUTDIR/arch/arm64/boot/Image"
-OUT_BOOTIMG="$(pwd)/kernel_build/zip2/boot.img"
-OUT_VENDORBOOTIMG="$(pwd)/kernel_build/zip2/vendor_boot.img"
+OUT_BOOTIMG="$(pwd)/kernel_build/zip/boot.img"
+OUT_VENDORBOOTIMG="$(pwd)/kernel_build/zip/vendor_boot.img"
 OUT_DTBIMAGE="$TMPDIR/dtb.img"
 BUILD_TOOLS_DIR="$(pwd)/kernel_build/build-tools"
 BUILD_TOOLS_REPO="https://android.googlesource.com/platform/prebuilts/build-tools"
@@ -169,7 +169,7 @@ cd "$DIR"
 echo "Done!"
 
 echo "Building zip..."
-cd "$(pwd)/kernel_build/zip2"
+cd "$(pwd)/kernel_build/zip"
 
 rm -f "$OUT_KERNELZIP"
 brotli --quality=6 -c boot.img > boot.br
@@ -185,12 +185,12 @@ cd "$(pwd)/kernel_build"
 rm -f "$OUT_KERNELTAR"
 lz4 -c -12 -B6 --content-size "$OUT_BOOTIMG" > boot.img.lz4
 lz4 -c -12 -B6 --content-size "$OUT_VENDORBOOTIMG" > vendor_boot.img.lz4
-lz4 -c -12 -B6 --content-size "$(pwd)/zip2/vbmeta.img" > vbmeta.img.lz4
+lz4 -c -12 -B6 --content-size "$(pwd)/zip/vbmeta.img" > vbmeta.img.lz4
 tar -cf "$OUT_KERNELTAR" boot.img.lz4 vendor_boot.img.lz4 vbmeta.img.lz4
 rm -f boot.img.lz4 vendor_boot.img.lz4 vbmeta.img.lz4
 cd "$DIR"
 echo "Done! Output: $OUT_KERNELTAR"
 
 echo "Cleaning..."
-rm -f "${OUT_VENDORBOOTIMG}" "${OUT_BOOTIMG}" "$(pwd)/kernel_build/zip2/vbmeta.img"
+rm -f "${OUT_VENDORBOOTIMG}" "${OUT_BOOTIMG}" "$(pwd)/kernel_build/zip/vbmeta.img"
 kfinish
