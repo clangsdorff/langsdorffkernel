@@ -153,7 +153,7 @@ static int dwc3_exynos_clk_get(struct dwc3_exynos *exynos)
 	clk_ids[clk_count] = NULL;
 
 	exynos->clocks = (struct clk **) devm_kmalloc(exynos->dev,
-			clk_count * sizeof(struct clk *), GFP_KERNEL);
+			(clk_count + 1) * sizeof(struct clk *), GFP_KERNEL);
 	if (!exynos->clocks) {
 		dev_err(exynos->dev, "%s: couldn't alloc\n", __func__);
 		return -ENOMEM;
@@ -1660,7 +1660,7 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 	spin_lock_irqsave(&dwc->lock, flags);
 	if (pm_runtime_suspended(dev)) {
 		dev_info(dev, "%s, already suspended\n", __func__);
-		return 0;
+		goto out;
 	}
 
 	dwc3_exynos_clk_disable(exynos);
@@ -1672,6 +1672,8 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 	 * dwc3_suspend/resume in core.c
 	 */
 	exynos->dwc->current_dr_role = DWC3_EXYNOS_IGNORE_CORE_OPS;
+
+out:
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
