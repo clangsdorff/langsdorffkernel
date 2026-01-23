@@ -1,5 +1,6 @@
 # langsdorffkernel Project for Samsung Galaxy A14 4G (A145F)
 **Features**
+- Root with rsuntk's KernelSU fork & SuSFS v2.0.0
 - CPU overclocked to 2210 MHz and GPU overclocked to 1196 MHz.
 - LZ4 compressed ZRAM.
 - @rsuntk's KernelSU port with SUSFS.
