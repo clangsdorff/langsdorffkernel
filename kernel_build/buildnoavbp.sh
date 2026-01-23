@@ -44,8 +44,8 @@ BUILD_TOOLS_DIR="$(pwd)/kernel_build/build-tools"
 BUILD_TOOLS_REPO="https://android.googlesource.com/platform/prebuilts/build-tools"
 
 # Kernel-side
-BUILD_ARGS="LOCALVERSION=-langsdorff${XY_VERSION} KBUILD_BUILD_USER=Langsdorff KBUILD_BUILD_HOST=langsdorff"
-
+GIT_COMMIT=$(git rev-parse --short HEAD)
+BUILD_ARGS="LOCALVERSION=-langsdorff${XY_VERSION}-${GIT_COMMIT} KBUILD_BUILD_USER=Langsdorff KBUILD_BUILD_HOST=langsdorff"
 kfinish() {
     rm -rf "$TMPDIR"
 #    rm -rf "$OUTDIR"
@@ -61,6 +61,7 @@ export CROSS_COMPILE="$PARENT_DIR/clang-r450784d/bin/aarch64-linux-gnu-"
 export CC="$PARENT_DIR/clang-r450784d/bin/clang"
 export PATH="$PARENT_DIR/build-tools/path/linux-x86:$PARENT_DIR/clang-r450784d/bin:$PATH"
 export LLVM_LDFLAGS="-fuse-ld=mold"
+export LD="mold"
 export DTC_FLAGS="-@"
 export PLATFORM_VERSION=14
 export LLVM=1
