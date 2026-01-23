@@ -932,7 +932,7 @@ out_copy_to_user:
 	SUSFS_LOGI("CMD_SUSFS_ADD_TRY_UMOUNT -> ret: %d\n", info.err);
 }
 
-void susfs_try_umount(void) {
+void susfs_try_umount(uid_t uid)) {
 	struct st_susfs_try_umount_list *cursor = NULL;
 
 	// We should umount in reversed order
