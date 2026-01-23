@@ -1,6 +1,6 @@
 #!/bin/bash
 
-XY_VERSION="@3.1"
+XY_VERSION="@3.1p"
 
 set -e
 

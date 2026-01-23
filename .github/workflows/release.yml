@@ -1,10 +1,6 @@
-name: Automated Securities Disabled Kernel Build Enforcing
-
+name: Release
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - A145FXXUBDYJ5
 
 jobs:
   Enforcing:
@@ -12,7 +8,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v6
     - name: Install tools
       run: |
         sudo apt-get install python2 pahole libelf-dev -y
@@ -23,8 +19,16 @@ jobs:
     - name: Build
       run: |
         bash buildnoavb.sh
+        bash buildnoavbp.sh
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: Enforcing-NoSecurities
+        name: Securities Disabled Kernel Builds
         path: kernel_build/langsdorff*
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: kernel_build/langsdorff*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
