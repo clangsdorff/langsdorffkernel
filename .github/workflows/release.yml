@@ -24,12 +24,6 @@ jobs:
       with:
         name: Enforcing-Build
         path: kernel_build/langsdorff*
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: kernel_build/langsdorff*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   Permissive:
     runs-on: ubuntu-22.04
 
@@ -51,12 +45,6 @@ jobs:
       with:
         name: Permissive-Build
         path: kernel_build/langsdorff*
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: kernel_build/langsdorff*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   ReleaseKernel:
     runs-on: ubuntu-22.04
     needs: [Enforcing, Permissive]
@@ -73,11 +61,10 @@ jobs:
           path: kernel_build/permissive
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
         with:
           files: |
             kernel_build/enforcing/langsdorff*
             kernel_build/permissive/langsdorff*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    
