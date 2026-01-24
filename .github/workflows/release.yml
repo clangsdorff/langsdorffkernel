@@ -4,6 +4,9 @@ on:
     tags:
       - "*"
 
+permissions:
+  contents: write
+
 jobs:
   Enforcing:
     runs-on: ubuntu-22.04
