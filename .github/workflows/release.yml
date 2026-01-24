@@ -1,6 +1,8 @@
 name: Release
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "*"
 
 jobs:
   Enforcing:
@@ -61,8 +63,10 @@ jobs:
           path: kernel_build/permissive
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        if: github.ref_type == 'tag'
         with:
+          name: langsdorff@${{ github.ref_name }}
+          draft: false
+          prerelease: false
           files: |
             kernel_build/enforcing/langsdorff*
             kernel_build/permissive/langsdorff*
