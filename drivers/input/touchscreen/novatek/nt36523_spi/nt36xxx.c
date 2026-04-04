@@ -3798,87 +3798,69 @@ return:
 *******************************************************/
 int32_t nvt_ts_resume(struct device *dev)
 {
-	struct nvt_ts_data *ts = dev_get_drvdata(dev);
+    struct nvt_ts_data *ts = dev_get_drvdata(dev);
 #if SEC_LPWG_DUMP
-	u8 lpwg_dump[5] = {0x7, 0x0, 0x0, 0x0, 0x0};
+    u8 lpwg_dump[5] = {0x7, 0x0, 0x0, 0x0, 0x0};
 #endif
 
-	ts->lcd_esd_recovery = 0;
-	cancel_delayed_work_sync(&ts->work_read_info);
+    ts->lcd_esd_recovery = 0;
+    cancel_delayed_work_sync(&ts->work_read_info);
 
-	if (ts->shutdown_called) {
-		input_err(true, &ts->client->dev, "%s shutdown was called\n", __func__);
-		return 0;
-	}
+    if (ts->shutdown_called) {
+        input_err(true, &ts->client->dev, "%s shutdown was called\n", __func__);
+        return 0;
+    }
 
-	if (ts->power_status == POWER_ON_STATUS) {
-		input_info(true, &ts->client->dev, "%s: Touch is already resume\n", __func__);
-		return 0;
-	}
+    if (ts->power_status == POWER_ON_STATUS) {
+        input_info(true, &ts->client->dev, "%s: Touch is already resume\n", __func__);
+        return 0;
+    }
 
-	mutex_lock(&ts->lock);
+    mutex_lock(&ts->lock);
 
-	if (ts->power_status == LP_MODE_EXIT) {
-		nvt_ts_lcd_power_ctrl(false);
+    if (ts->power_status == LP_MODE_EXIT) {
+        nvt_ts_lcd_power_ctrl(false);
 #if SEC_LPWG_DUMP
-		nvt_ts_lpwg_dump_buf_write(lpwg_dump);
+        nvt_ts_lpwg_dump_buf_write(lpwg_dump);
 #endif
-	} else {
-		pinctrl_configure(ts, true);
-	}
+    } else {
+        pinctrl_configure(ts, true);
+    }
 
-	ts->prox_power_off = 0;
-	ts->power_status = POWER_ON_STATUS;
+    ts->prox_power_off = 0;
+    ts->power_status = POWER_ON_STATUS;
 
-	// please make sure display reset(RESX) sequence and mipi dsi cmds sent before this
 #if NVT_TOUCH_SUPPORT_HW_RST
-	gpio_set_value(ts->reset_gpio, 1);
+    gpio_set_value(ts->reset_gpio, 1);
 #endif
 
-	if (nvt_update_firmware(ts->platdata->firmware_name)) {
-		input_err(true, &ts->client->dev,"download firmware failed, ignore check fw state\n");
-	} else {
-		nvt_check_fw_reset_state(RESET_STATE_REK);
-	}
+    if (nvt_update_firmware(ts->platdata->firmware_name)) {
+        input_err(true, &ts->client->dev,"download firmware failed, ignore check fw state\n");
+    } else {
+        nvt_check_fw_reset_state(RESET_STATE_REK);
+    }
 
-	nvt_ts_mode_restore(ts);
+    nvt_ts_mode_restore(ts);
 
-	if (ts->ear_detect_mode) {
-		set_ear_detect(ts, ts->ear_detect_mode, false);
-	} else {
-		if (ts->ed_reset_flag) {
-			input_info(true, &ts->client->dev, "%s : set ed on & off\n", __func__);
-			set_ear_detect(ts, 1, false);
-			set_ear_detect(ts, 0, false);
-		}
-	}
-	ts->ed_reset_flag = false;
-
-#if NVT_TOUCH_ESD_PROTECT
-	nvt_esd_check_enable(false);
-	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
-			msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
-
-	mutex_unlock(&ts->lock);
+    mutex_unlock(&ts->lock);
 
 #if SEC_FW_STATUS
-	nvt_ts_ic_status(NULL, true);
+    nvt_ts_ic_status(NULL, true);
 #endif
 
-	nvt_irq_enable(true);
+    nvt_irq_enable(true);
 
-	cancel_delayed_work(&ts->work_print_info);
+    cancel_delayed_work(&ts->work_print_info);
 #if IS_ENABLED(CONFIG_VBUS_NOTIFIER)
-	cancel_delayed_work(&ts->work_vbus);
+    cancel_delayed_work(&ts->work_vbus);
 #endif
-	ts->print_info_cnt_open = 0;
-	ts->print_info_cnt_release = 0;
-	schedule_work(&ts->work_print_info.work);
+    ts->print_info_cnt_open = 0;
+    ts->print_info_cnt_release = 0;
+    schedule_work(&ts->work_print_info.work);
 
-	input_info(true, &ts->client->dev, "%s : end\n", __func__);
+    input_info(true, &ts->client->dev, "%s : end\n", __func__);
 
-	return 0;
+    return 0;
 }
 
 #if IS_ENABLED(CONFIG_PM)
