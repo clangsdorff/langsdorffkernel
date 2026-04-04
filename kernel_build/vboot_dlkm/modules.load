@@ -218,7 +218,6 @@ sec_thermistor.ko
 mfd_s2mu106.ko
 novatek_ts_nt36523.ko
 s2mu106_fuelgauge.ko
-focaltech_ts_ft8720.ko
 shub.ko
 sensor_core.ko
 s2mu106_pmeter.ko

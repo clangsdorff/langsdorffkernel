@@ -423,17 +423,6 @@ config AMLOGIC_THERMAL
 	  This driver can also be built as a module. If so, the module will
 	  be called amlogic_thermal.
 
-menu "Intel thermal drivers"
-depends on X86 || X86_INTEL_QUARK || COMPILE_TEST
-source "drivers/thermal/intel/Kconfig"
-endmenu
-
-menu "Broadcom thermal drivers"
-depends on ARCH_BCM || ARCH_BRCMSTB || ARCH_BCM2835 || ARCH_BCM_IPROC || \
-		COMPILE_TEST
-source "drivers/thermal/broadcom/Kconfig"
-endmenu
-
 menu "Texas Instruments thermal drivers"
 depends on ARCH_HAS_BANDGAP || COMPILE_TEST
 depends on HAS_IOMEM
@@ -459,8 +448,6 @@ config TANGO_THERMAL
 	  This sensor only generates a 1-bit signal to indicate whether
 	  the die temperature exceeds a programmable threshold.
 
-source "drivers/thermal/tegra/Kconfig"
-
 config GENERIC_ADC_THERMAL
 	tristate "Generic ADC based thermal sensor"
 	depends on IIO
@@ -470,11 +457,6 @@ config GENERIC_ADC_THERMAL
 	  is read via IIO framework and the channel information is provided
 	  to this driver. This driver reports the temperature by reading ADC
 	  channel and converts it to temperature based on lookup table.
-
-menu "Qualcomm thermal drivers"
-depends on (ARCH_QCOM && OF) || COMPILE_TEST
-source "drivers/thermal/qcom/Kconfig"
-endmenu
 
 config ZX2967_THERMAL
 	tristate "Thermal sensors on zx2967 SoC"
