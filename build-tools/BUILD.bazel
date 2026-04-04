@@ -1,0 +1,192 @@
+load("@rules_python//python:defs.bzl", "py_runtime")
+load("@rules_python//python:py_exec_tools_toolchain.bzl", "py_exec_tools_toolchain")
+load("@rules_python//python:py_runtime_pair.bzl", "py_runtime_pair")
+load(":prebuilt_tool.bzl", "prebuilt_tool")
+
+filegroup(
+    name = "linux-x86",
+    srcs = glob([
+        "common/**",
+        "linux-x86/bin/*",
+        "path/linux-x86/*",
+    ]) + [":linux-x86-libs"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "linux-x86-libs",
+    srcs = glob(["linux-x86/lib64/*"]),
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "linux_musl-x86-libs",
+    srcs = glob(["linux_musl-x86/lib64/*"]),
+    visibility = ["//visibility:private"],
+)
+
+# Used in prebuilt_tool()
+alias(
+    name = "libs",
+    actual = select({
+        "//build/kernel/kleaf/platforms/libc:glibc": ":linux-x86-libs",
+        "//build/kernel/kleaf/platforms/libc:musl": ":linux_musl-x86-libs",
+    }),
+    target_compatible_with = select({
+        "//build/kernel/kleaf/platforms/libc:glibc": [],
+        "//build/kernel/kleaf/platforms/libc:musl": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    visibility = ["//visibility:private"],
+)
+
+py_runtime(
+    name = "python3",
+    files = ["linux-x86/bin/py3-cmd"],
+    interpreter = "linux-x86/bin/py3-cmd",
+    python_version = "PY3",
+    visibility = ["//visibility:public"],
+)
+
+py_runtime_pair(
+    name = "py_runtime_pair",
+    py3_runtime = ":python3",
+    visibility = ["//visibility:public"],
+)
+
+toolchain(
+    name = "py_toolchain",
+    toolchain = ":py_runtime_pair",
+    toolchain_type = "@rules_python//python:toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
+py_runtime(
+    name = "python3_musl",
+    files = [
+        "linux_musl-x86/bin/py3-cmd",
+        "linux_musl-x86/lib64/libc_musl.so",
+    ],
+    interpreter = "linux_musl-x86/bin/py3-cmd",
+    python_version = "PY3",
+    visibility = ["//visibility:private"],
+)
+
+py_runtime_pair(
+    name = "py_runtime_pair_musl",
+    py3_runtime = ":python3_musl",
+    visibility = ["//visibility:private"],
+)
+
+toolchain(
+    name = "py_toolchain_musl",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        "//build/kernel/kleaf/platforms/libc:musl",
+    ],
+    toolchain = ":py_runtime_pair_musl",
+    toolchain_type = "@rules_python//python:toolchain_type",
+    visibility = ["//visibility:private"],
+)
+
+py_exec_tools_toolchain(
+    name = "py_exec_tools_toolchain_impl",
+    # Use the interpreter from //python:toolchain_type
+    exec_interpreter = None,
+    visibility = ["//visibility:private"],
+)
+
+toolchain(
+    name = "py_exec_tools_toolchain",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchain = ":py_exec_tools_toolchain_impl",
+    toolchain_type = "@rules_python//python:exec_tools_toolchain_type",
+    visibility = ["//visibility:private"],
+)
+
+prebuilt_tool(
+    name = "awk",
+    actual = "one-true-awk",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "bc",
+    actual = "gavinhoward-bc",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "bison",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "bzip2",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "flex",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "m4",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "make",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "openssl",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "runextractor",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "soong_zip",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "toybox",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "xz",
+    visibility = ["//visibility:public"],
+)
+
+prebuilt_tool(
+    name = "ziptool",
+    visibility = ["//visibility:public"],
+)
+
+# Additional runfiles required by bison
+filegroup(
+    name = "bison.runfiles",
+    srcs = glob([
+        "common/bison/**",
+    ]),
+    visibility = ["//visibility:public"],
+)
+
+# Point to the directory so variables can know where to set BISON_PKGDATADIR to
+filegroup(
+    name = "bison.runfiles_dir",
+    srcs = ["common/bison"],
+    visibility = ["//visibility:public"],
+)
