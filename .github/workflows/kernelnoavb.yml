@@ -1,7 +1,10 @@
-name: Securities Disabled Kernel Build Enforcing
+name: Automated Securities Disabled Kernel Build Enforcing
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - A145FXXUBDYJ5
 
 jobs:
   Enforcing:
