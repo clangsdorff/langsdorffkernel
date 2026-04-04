@@ -68,10 +68,18 @@ export DEPMOD=depmod
 export ARCH=arm64
 export TARGET_SOC=s5e3830
 
-make -j$(nproc --all) -C $(pwd) O=out $BUILD_ARGS a14noavbp_defconfig
-make -j$(nproc --all) -C $(pwd) O=out $BUILD_ARGS dtbs
-make -j$(nproc --all) -C $(pwd) O=out $BUILD_ARGS
-make -j$(nproc --all) -C $(pwd) O=out INSTALL_MOD_STRIP="--strip-debug --keep-section=.ARM.attributes" INSTALL_MOD_PATH="$MODULES_OUTDIR" modules_install
+echo "Defconfig Build Started"
+make -j$(nproc --all) -C $(pwd) LDFLAGS="-fuse-ld=mold" O=out $BUILD_ARGS a14noavbp_defconfig
+echo "Defconfig Build Finished"
+echo "Dtbs Build Started"
+make -j$(nproc --all) -C $(pwd) LDFLAGS="-fuse-ld=mold" O=out $BUILD_ARGS dtbs
+echo "Dtbs Build Finished"
+echo "Normal Build Started"
+make -j$(nproc --all) -C $(pwd) LDFLAGS="-fuse-ld=mold" O=out $BUILD_ARGS
+echo "Normal Build Finished"
+echo "Modules Build Started"
+make -j$(nproc --all) -C $(pwd) LDFLAGS="-fuse-ld=mold" O=out INSTALL_MOD_STRIP="--strip-debug --keep-section=.ARM.attributes" INSTALL_MOD_PATH="$MODULES_OUTDIR" modules_install
+echo "Modules Build Finished"
 
 rm -rf "$TMPDIR"
 rm -f "$OUT_BOOTIMG"
@@ -88,6 +96,10 @@ if ! find "$MODULES_OUTDIR/lib/modules" -mindepth 1 -type d | read; then
     echo "Unknown error!"
     exit 1
 fi
+
+echo -e "Showing all modules\n*"
+ls $MODULES_OUTDIR/lib/modules
+echo -e "Showing modules finished\n*"
 
 missing_modules=""
 
