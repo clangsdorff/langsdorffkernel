@@ -255,154 +255,195 @@ static ssize_t print_dataline_8(int did, struct flexpmu_dbg_print_arg *print_arg
 
 static ssize_t exynos_flexpmu_dbg_cpu_status_read(int fid, char *buf)
 {
-	ssize_t ret = 0;
-	int data_count = 0;
+    ssize_t ret = 0;
+    int data_count = 0;
 
-	struct flexpmu_dbg_print_arg print_arg[BUF_MAX_LINE] = {
-		{"CL0_CPU0", DEC_PRINT},
-		{"CL0_CPU1", DEC_PRINT},
-		{"CL0_CPU2", DEC_PRINT},
-		{"CL0_CPU3", DEC_PRINT},
-		{"CL1_CPU0", DEC_PRINT},
-		{"CL1_CPU1", DEC_PRINT},
-		{"CL1_CPU2", DEC_PRINT},
-		{"CL1_CPU3", DEC_PRINT},
-	};
+    struct flexpmu_dbg_print_arg *print_arg = kmalloc_array(BUF_MAX_LINE, sizeof(*print_arg), GFP_KERNEL);
+    if (!print_arg)
+        return -ENOMEM;
 
-	ret = print_dataline_8(DID_CPU_STATUS, print_arg, ret, buf, &data_count);
+    // Diziyi doldur
+    memcpy(print_arg, ((struct flexpmu_dbg_print_arg[BUF_MAX_LINE]){
+        {"CL0_CPU0", DEC_PRINT},
+        {"CL0_CPU1", DEC_PRINT},
+        {"CL0_CPU2", DEC_PRINT},
+        {"CL0_CPU3", DEC_PRINT},
+        {"CL1_CPU0", DEC_PRINT},
+        {"CL1_CPU1", DEC_PRINT},
+        {"CL1_CPU2", DEC_PRINT},
+        {"CL1_CPU3", DEC_PRINT},
+    }), sizeof(*print_arg) * BUF_MAX_LINE);
 
-	return ret;
+    ret = print_dataline_8(DID_CPU_STATUS, print_arg, ret, buf, &data_count);
+
+    kfree(print_arg);
+    return ret;
 }
 
 static ssize_t exynos_flexpmu_dbg_seq_status_read(int fid, char *buf)
 {
-	ssize_t ret = 0;
-	int data_count = 0;
+    ssize_t ret = 0;
+    int data_count = 0;
 
-	struct flexpmu_dbg_print_arg print_arg[BUF_MAX_LINE] = {
-		{"SOC seq", DEC_PRINT},
-		{"MIF seq", DEC_PRINT},
-		{},
-		{},
-		{"nonCPU CL0", DEC_PRINT},
-		{"nonCPU CL1", DEC_PRINT},
-		{},
-	};
+    struct flexpmu_dbg_print_arg *print_arg = kmalloc_array(BUF_MAX_LINE, sizeof(*print_arg), GFP_KERNEL);
+    if (!print_arg)
+        return -ENOMEM;
 
-	ret = print_dataline_8(DID_SEQ_STATUS, print_arg, ret, buf, &data_count);
+    memcpy(print_arg, ((struct flexpmu_dbg_print_arg[BUF_MAX_LINE]){
+        {"SOC seq", DEC_PRINT},
+        {"MIF seq", DEC_PRINT},
+        {},
+        {},
+        {"nonCPU CL0", DEC_PRINT},
+        {"nonCPU CL1", DEC_PRINT},
+        {},
+    }), sizeof(*print_arg) * BUF_MAX_LINE);
 
-	return ret;
+    ret = print_dataline_8(DID_SEQ_STATUS, print_arg, ret, buf, &data_count);
+
+    kfree(print_arg);
+    return ret;
 }
 
 static ssize_t exynos_flexpmu_dbg_cur_sequence_read(int fid, char *buf)
 {
-	ssize_t ret = 0;
-	int data_count = 0;
+    ssize_t ret = 0;
+    int data_count = 0;
 
-	struct flexpmu_dbg_print_arg print_arg[BUF_MAX_LINE] = {
-		{"UP Sequence", DEC_PRINT},
-		{"DOWN Sequence", DEC_PRINT},
-		{"Access Type", DEC_PRINT},
-		{"Seq Index", DEC_PRINT},
-	};
+    struct flexpmu_dbg_print_arg *print_arg = kmalloc_array(BUF_MAX_LINE, sizeof(*print_arg), GFP_KERNEL);
+    if (!print_arg)
+        return -ENOMEM;
 
-	ret = print_dataline_2(DID_CUR_SEQ0, print_arg, ret, buf, &data_count);
-	ret = print_dataline_2(DID_CUR_SEQ1, print_arg, ret, buf, &data_count);
+    memcpy(print_arg, ((struct flexpmu_dbg_print_arg[BUF_MAX_LINE]){
+        {"UP Sequence", DEC_PRINT},
+        {"DOWN Sequence", DEC_PRINT},
+        {"Access Type", DEC_PRINT},
+        {"Seq Index", DEC_PRINT},
+    }), sizeof(*print_arg) * BUF_MAX_LINE);
 
-	return ret;
+    ret = print_dataline_2(DID_CUR_SEQ0, print_arg, ret, buf, &data_count);
+    ret = print_dataline_2(DID_CUR_SEQ1, print_arg, ret, buf, &data_count);
+
+    kfree(print_arg);
+    return ret;
 }
 
 static ssize_t exynos_flexpmu_dbg_sw_flag_read(int fid, char *buf)
 {
-	ssize_t ret = 0;
-	int data_count = 0;
+    ssize_t ret = 0;
+    int data_count = 0;
 
-	struct flexpmu_dbg_print_arg print_arg[BUF_MAX_LINE] = {
-		{"Hotplug out flag", HEX_PRINT},
-		{"Reset-Release flag", HEX_PRINT},
-		{},
-		{},
-		{"CHUB ref_count", DEC_PRINT},
-		{},
-		{"MIF req_Master", HEX_PRINT},
-		{"MIF req_count", DEC_PRINT},
-	};
+    struct flexpmu_dbg_print_arg *print_arg = kmalloc_array(BUF_MAX_LINE, sizeof(*print_arg), GFP_KERNEL);
+    if (!print_arg)
+        return -ENOMEM;
 
-	ret = print_dataline_8(DID_SW_FLAG, print_arg, ret, buf, &data_count);
+    memcpy(print_arg, ((struct flexpmu_dbg_print_arg[BUF_MAX_LINE]){
+        {"Hotplug out flag", HEX_PRINT},
+        {"Reset-Release flag", HEX_PRINT},
+        {},
+        {},
+        {"CHUB ref_count", DEC_PRINT},
+        {},
+        {"MIF req_Master", HEX_PRINT},
+        {"MIF req_count", DEC_PRINT},
+    }), sizeof(*print_arg) * BUF_MAX_LINE);
 
-	return ret;
+    ret = print_dataline_8(DID_SW_FLAG, print_arg, ret, buf, &data_count);
+
+    kfree(print_arg);
+    return ret;
 }
 
 static ssize_t exynos_flexpmu_dbg_seq_count_read(int fid, char *buf)
 {
-	ssize_t ret = 0;
-	int data_count = 0;
+    ssize_t ret = 0;
+    int data_count = 0;
 
-	struct flexpmu_dbg_print_arg print_arg[BUF_MAX_LINE] = {
-		{"Early Wakeup", DEC_PRINT},
-		{"SOC sequence", DEC_PRINT},
-		{},
-		{"MIF sequence", DEC_PRINT},
-	};
+    struct flexpmu_dbg_print_arg *print_arg = kmalloc_array(BUF_MAX_LINE, sizeof(*print_arg), GFP_KERNEL);
+    if (!print_arg)
+        return -ENOMEM;
 
-	ret = print_dataline_2(DID_SOC_COUNT, print_arg, ret, buf, &data_count);
-	ret = print_dataline_2(DID_MIF_COUNT, print_arg, ret, buf, &data_count);
+    memcpy(print_arg, ((struct flexpmu_dbg_print_arg[BUF_MAX_LINE]){
+        {"Early Wakeup", DEC_PRINT},
+        {"SOC sequence", DEC_PRINT},
+        {},
+        {"MIF sequence", DEC_PRINT},
+    }), sizeof(*print_arg) * BUF_MAX_LINE);
 
-	return ret;
+    ret = print_dataline_2(DID_SOC_COUNT, print_arg, ret, buf, &data_count);
+    ret = print_dataline_2(DID_MIF_COUNT, print_arg, ret, buf, &data_count);
+
+    kfree(print_arg);
+    return ret;
 }
 
 static ssize_t exynos_flexpmu_dbg_mif_always_on_read(int fid, char *buf)
 {
-	ssize_t ret = 0;
-	int data_count = 0;
+    ssize_t ret = 0;
+    int data_count = 0;
 
-	struct flexpmu_dbg_print_arg print_arg[BUF_MAX_LINE] = {
-		{},
-		{"MIF always on", DEC_PRINT},
-	};
+    struct flexpmu_dbg_print_arg *print_arg = kmalloc_array(BUF_MAX_LINE, sizeof(*print_arg), GFP_KERNEL);
+    if (!print_arg)
+        return -ENOMEM;
 
-	ret = print_dataline_2(DID_MIF_ALWAYS_ON, print_arg, ret, buf, &data_count);
+    memcpy(print_arg, ((struct flexpmu_dbg_print_arg[BUF_MAX_LINE]){
+        {},
+        {"MIF always on", DEC_PRINT},
+    }), sizeof(*print_arg) * BUF_MAX_LINE);
 
-	return ret;
+    ret = print_dataline_2(DID_MIF_ALWAYS_ON, print_arg, ret, buf, &data_count);
+
+    kfree(print_arg);
+    return ret;
 }
 
 static ssize_t exynos_flexpmu_dbg_lpm_count_read(int fid, char *buf)
 {
-	ssize_t ret = 0;
-	int data_count = 0;
+    ssize_t ret = 0;
+    int data_count = 0;
 
-	struct flexpmu_dbg_print_arg print_arg[BUF_MAX_LINE] = {
-		{"[SLEEP] Early wakeup", DEC_PRINT},
-		{"[SLEEP] SOC seq down", DEC_PRINT},
-		{},
-		{"[SLEEP] MIF seq down", DEC_PRINT},
-		{"[SICD] Early wakeup", DEC_PRINT},
-		{"[SICD] SOC seq down", DEC_PRINT},
-		{},
-		{"[SICD] MIF seq down", DEC_PRINT},
-	};
+    struct flexpmu_dbg_print_arg *print_arg = kmalloc_array(BUF_MAX_LINE, sizeof(*print_arg), GFP_KERNEL);
+    if (!print_arg)
+        return -ENOMEM;
 
-	ret = print_dataline_2(DID_AP_COUNT_SLEEP, print_arg, ret, buf, &data_count);
-	ret = print_dataline_2(DID_MIF_COUNT_SLEEP, print_arg, ret, buf, &data_count);
-	ret = print_dataline_2(DID_AP_COUNT_SICD, print_arg, ret, buf, &data_count);
-	ret = print_dataline_2(DID_MIF_COUNT_SICD, print_arg, ret, buf, &data_count);
+    memcpy(print_arg, ((struct flexpmu_dbg_print_arg[BUF_MAX_LINE]){
+        {"[SLEEP] Early wakeup", DEC_PRINT},
+        {"[SLEEP] SOC seq down", DEC_PRINT},
+        {},
+        {"[SLEEP] MIF seq down", DEC_PRINT},
+        {"[SICD] Early wakeup", DEC_PRINT},
+        {"[SICD] SOC seq down", DEC_PRINT},
+        {},
+        {"[SICD] MIF seq down", DEC_PRINT},
+    }), sizeof(*print_arg) * BUF_MAX_LINE);
 
-	return ret;
+    ret = print_dataline_2(DID_AP_COUNT_SLEEP, print_arg, ret, buf, &data_count);
+    ret = print_dataline_2(DID_MIF_COUNT_SLEEP, print_arg, ret, buf, &data_count);
+    ret = print_dataline_2(DID_AP_COUNT_SICD, print_arg, ret, buf, &data_count);
+    ret = print_dataline_2(DID_MIF_COUNT_SICD, print_arg, ret, buf, &data_count);
+
+    kfree(print_arg);
+    return ret;
 }
 
 static ssize_t exynos_flexpmu_dbg_log_stop_read(int fid, char *buf)
 {
-	ssize_t ret = 0;
-	int data_count = 0;
+    ssize_t ret = 0;
+    int data_count = 0;
 
-	struct flexpmu_dbg_print_arg print_arg[BUF_MAX_LINE] = {
-		{},
-		{"log stopped", DEC_PRINT},
-	};
+    struct flexpmu_dbg_print_arg *print_arg = kmalloc_array(BUF_MAX_LINE, sizeof(*print_arg), GFP_KERNEL);
+    if (!print_arg)
+        return -ENOMEM;
 
-	ret = print_dataline_2(DID_LOG_STOP, print_arg, ret, buf, &data_count);
+    memcpy(print_arg, ((struct flexpmu_dbg_print_arg[BUF_MAX_LINE]){
+        {},
+        {"log stopped", DEC_PRINT},
+    }), sizeof(*print_arg) * BUF_MAX_LINE);
 
-	return ret;
+    ret = print_dataline_2(DID_LOG_STOP, print_arg, ret, buf, &data_count);
+
+    kfree(print_arg);
+    return ret;
 }
 
 #define RTC_TICK_TO_US		976	/* 1024 Hz : 1tick = 976.5625us */
