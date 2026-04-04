@@ -733,6 +733,8 @@ static struct thermal_zone_device* parse_ect_cooling_level(struct thermal_coolin
 		unsigned long max_level = 0;
 		int level;
 
+		if (function->range_list[i].max_frequency == 1001000) function->range_list[i].max_frequency = 1196000;
+
 		temperature = function->range_list[i].lower_bound_temperature;
 		freq = function->range_list[i].max_frequency;
 
