@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - A145FXXUBDYJ5
+      - A145FXXUDDZB5
 
 jobs:
   Enforcing:
