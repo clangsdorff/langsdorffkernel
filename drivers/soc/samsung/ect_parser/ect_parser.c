@@ -559,6 +559,8 @@ static int ect_parse_ap_thermal_function(int parser_version, void *address, stru
 		ect_parse_integer(&address, &range->max_frequency);
 		ect_parse_integer(&address, &range->sw_trip);
 		ect_parse_integer(&address, &range->flag);
+
+		if (range->max_frequency == 1001000) range->max_frequency = 1196000;
 	}
 
 	return 0;

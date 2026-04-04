@@ -316,8 +316,10 @@ unsigned int vclk_get_max_freq(unsigned int id)
 
 	vclk = cmucal_get_node(id);
 
-	if (vclk && vclk->lut)
+	if (vclk && vclk->lut) {
+		if (vclk->max_freq == 2002000) vclk->max_freq = 2210000;
 		rate = vclk->max_freq;
+	}
 
 	return rate;
 }
