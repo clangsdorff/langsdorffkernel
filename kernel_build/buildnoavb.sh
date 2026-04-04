@@ -90,6 +90,10 @@ if ! find "$MODULES_OUTDIR/lib/modules" -mindepth 1 -type d | read; then
     exit 1
 fi
 
+echo -e "Showing all modules\n*"
+ls $MODULES_OUTDIR/lib/modules
+echo -e "Showing modules finished\n*"
+
 missing_modules=""
 
 for module in $(cat "$IN_DLKM/modules.load"); do
