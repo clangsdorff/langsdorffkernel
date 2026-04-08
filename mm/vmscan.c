@@ -189,9 +189,9 @@ struct scan_control {
 #endif
 
 /*
- * From 0 .. 200.  Higher means more swappy.
+ * Exynos 850: Optimize for ZRAM/Swap usage
  */
-int vm_swappiness = 100;
+int vm_swappiness = 160;
 
 #define DEF_KSWAPD_THREADS_PER_NODE 1
 static int kswapd_threads = DEF_KSWAPD_THREADS_PER_NODE;
