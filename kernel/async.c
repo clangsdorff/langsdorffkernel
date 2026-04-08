@@ -57,7 +57,7 @@ asynchronous and synchronous parts of the kernel.
 
 static async_cookie_t next_cookie = 1;
 
-#define MAX_WORK		32768
+#define MAX_WORK		65536
 #define ASYNC_COOKIE_MAX	ULLONG_MAX	/* infinity cookie */
 
 static LIST_HEAD(async_global_pending);	/* pending from all registered doms */
@@ -108,8 +108,7 @@ static async_cookie_t lowest_in_progress(struct async_domain *domain)
  */
 static void async_run_entry_fn(struct work_struct *work)
 {
-	struct async_entry *entry =
-		container_of(work, struct async_entry, work);
+	struct async_entry *entry = container_of(work, struct async_entry, work);
 	unsigned long flags;
 	ktime_t calltime, delta, rettime;
 
