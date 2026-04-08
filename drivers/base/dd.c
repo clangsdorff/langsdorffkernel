@@ -777,10 +777,6 @@ __setup("driver_async_probe=", save_async_options);
 
 bool driver_allows_async_probing(struct device_driver *drv)
 {
-	/* Force asynchronous probing for Exynos 850 to speed up boot */
-	if (drv->probe_type != PROBE_FORCE_SYNCHRONOUS)
-		return true;
-
 	switch (drv->probe_type) {
 	case PROBE_PREFER_ASYNCHRONOUS:
 		return true;

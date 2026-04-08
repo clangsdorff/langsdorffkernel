@@ -1052,7 +1052,7 @@ asmlinkage __visible void __init __no_sanitize_address start_kernel(void)
 	sfi_init_late();
 	kcsan_init();
 
-	/* Exynos 850 optimization: Finalize boot sequence */
+	/* Do the rest non-__init'ed, we're now alive */
 	arch_call_rest_init();
 
 	prevent_tail_call_optimization();

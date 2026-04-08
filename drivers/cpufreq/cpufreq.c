@@ -577,11 +577,16 @@ unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy)
 	latency = policy->cpuinfo.transition_latency / NSEC_PER_USEC;
 	if (latency) {
 		/*
-		 * Exynos 850: Reduce transition delay to 2ms for faster scaling.
-		 * For platforms where transition_latency is in milliseconds, it
+		 * For platforms that can change the frequency very fast (< 10
+		 * us), the above formula gives a decent transition delay. But
+		 * for platforms where transition_latency is in milliseconds, it
 		 * ends up giving unrealistic values.
+		 *
+		 * Cap the default transition delay to 10 ms, which seems to be
+		 * a reasonable amount of time after which we should reevaluate
+		 * the frequency.
 		 */
-		return min(latency * LATENCY_MULTIPLIER, (unsigned int)2000);
+		return min(latency * LATENCY_MULTIPLIER, (unsigned int)10000);
 	}
 
 	return LATENCY_MULTIPLIER;
