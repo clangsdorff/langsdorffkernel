@@ -25,7 +25,7 @@ choice
 	prompt "version Configuration"
 	depends on MALI_DDK_VERSION
 	default MALI_BIFROST_R38P1  if SOC_EXYNOS3830_ANDROID_VERSION_T
-	default MALI_BIFROST_R49P1  if SOC_EXYNOS3830_ANDROID_VERSION_V
+	default MALI_BIFROST_R51P0  if SOC_EXYNOS3830_ANDROID_VERSION_V
 	help
 	  Select the gpu support version.
 
@@ -36,6 +36,9 @@ config MALI_BIFROST_R38P1
 config MALI_BIFROST_R49P1
         depends on MALI_DDK_VERSION
         bool "Bifrost r49p1 driver"
+config MALI_BIFROST_R51P0
+        depends on MALI_DDK_VERSION
+        bool "Bifrost r51p0 driver"
 
 endchoice
 
@@ -45,6 +48,10 @@ endif
 
 if MALI_BIFROST_R49P1
 source "drivers/gpu/arm/b_r49p1/Kconfig"
+endif
+
+if MALI_BIFROST_R51P0
+source "drivers/gpu/arm/bv_r51p0/Kconfig"
 endif
 
 endmenu
