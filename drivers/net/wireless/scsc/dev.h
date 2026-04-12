@@ -1350,6 +1350,12 @@ struct slsi_dev {
 	/* ProcFS */
 	int                        procfs_instance;
 	struct proc_dir_entry      *procfs_dir;
+#ifdef CONFIG_SCSC_WLAN_MUTEX_DEBUG
+	struct slsi_mutex          tspec_mutex;
+#else
+	/* a std mutex */
+	struct mutex               tspec_mutex;
+#endif
 
 	/* Configuration */
 	u8                         hw_addr[ETH_ALEN];

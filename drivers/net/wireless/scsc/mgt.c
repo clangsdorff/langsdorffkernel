@@ -2975,8 +2975,11 @@ void slsi_vif_deactivated(struct slsi_dev *sdev, struct net_device *dev)
 		memset(ndev_vif->sta.keepalive_host_tag, 0, sizeof(ndev_vif->sta.keepalive_host_tag));
 
 		/* delete the TSPEC entries (if any) if it is a STA vif */
-		if (ndev_vif->iftype == NL80211_IFTYPE_STATION)
+		if (ndev_vif->iftype == NL80211_IFTYPE_STATION){
+			SLSI_MUTEX_LOCK(sdev->tspec_mutex);
 			cac_delete_tspec_list(sdev);
+			SLSI_MUTEX_UNLOCK(sdev->tspec_mutex);
+		}
 
 		if (ndev_vif->sta.tdls_enabled)
 			WARN(ndev_vif->sta.tdls_peer_sta_records, "vif:%d, tdls_peer_sta_records:%d", ndev_vif->ifnum, ndev_vif->sta.tdls_peer_sta_records);

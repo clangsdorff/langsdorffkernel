@@ -849,6 +849,8 @@ static int slsi_gscan_add_read_params(struct slsi_nl_gscan_param *nl_gscan_param
 		case GSCAN_ATTRIBUTE_NUM_BUCKETS:
 			if (slsi_util_nla_get_u32(iter, &nl_gscan_param->num_buckets))
 				return -EINVAL;
+			if (nl_gscan_param->num_buckets > SLSI_GSCAN_MAX_BUCKETS)
+				nl_gscan_param->num_buckets = SLSI_GSCAN_MAX_BUCKETS;
 			break;
 		case GSCAN_ATTRIBUTE_CH_BUCKET_1:
 		case GSCAN_ATTRIBUTE_CH_BUCKET_2:
@@ -878,6 +880,9 @@ static int slsi_gscan_add_read_params(struct slsi_nl_gscan_param *nl_gscan_param
 				case GSCAN_ATTRIBUTE_BUCKET_NUM_CHANNELS:
 					if (slsi_util_nla_get_u32(iter1, &(nl_bucket[j].num_channels)))
 						return -EINVAL;
+
+					if (nl_bucket[j].num_channels > SLSI_GSCAN_MAX_CHANNELS)
+						nl_bucket[j].num_channels = SLSI_GSCAN_MAX_CHANNELS;
 					break;
 				case GSCAN_ATTRIBUTE_BUCKET_CHANNELS:
 					nla_for_each_nested(iter2, iter1, tmp2) {

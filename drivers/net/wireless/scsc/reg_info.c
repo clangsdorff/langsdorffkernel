@@ -14,7 +14,7 @@ MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 #endif
 
 #define SLSI_REG_INFO_BUILD_REG_DOM_VER(major, minor, minor2) \
-		(((major & 0xFF) << 16) | ((minor & 0xFF) << 8) | (minor2 & 0xFF))
+		((major & 0xFF) << 16) | ((minor & 0xFF) << 8) | (minor2 & 0xFF)
 
 void slsi_regd_init(struct slsi_dev *sdev)
 {

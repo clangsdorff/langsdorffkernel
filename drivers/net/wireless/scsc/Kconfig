@@ -357,3 +357,9 @@ config SCSC_WLAN_SAR_SUPPORTED
         default n
         help
         This option enables the SAR configuration through NL commands.
+
+config SCSC_WLBT_PTR_PRINT
+	bool "Enable this flag to print memory address used for debugging"
+	default n
+	help
+		Enable this flag to print memory address used for debugging

@@ -2549,7 +2549,7 @@ int slsi_set_acl(struct slsi_dev *sdev, struct net_device *dev)
 	int fw_acl_entries_count = 0;
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	int ret = 0;
-	int num_bssid_total = 0;
+	size_t num_bssid_total = 0;
 	struct list_head *blacklist_pos, *blacklist_q;
 	int ioctl_acl_entries_count = 0;
 
@@ -2566,13 +2566,13 @@ int slsi_set_acl(struct slsi_dev *sdev, struct net_device *dev)
 	}
 
 	if (ndev_vif->acl_data_supplicant)
-		num_bssid_total += ndev_vif->acl_data_supplicant->n_acl_entries;
+		num_bssid_total = slsi_size_add(num_bssid_total, (size_t)ndev_vif->acl_data_supplicant->n_acl_entries);
 	if (ndev_vif->acl_data_hal)
-		num_bssid_total += ndev_vif->acl_data_hal->n_acl_entries;
-	num_bssid_total += fw_acl_entries_count;
-	num_bssid_total += ioctl_acl_entries_count;
+		num_bssid_total = slsi_size_add(num_bssid_total, (size_t)ndev_vif->acl_data_hal->n_acl_entries);
+	num_bssid_total = slsi_size_add(num_bssid_total, (size_t)fw_acl_entries_count);
+	num_bssid_total = slsi_size_add(num_bssid_total, (size_t)ioctl_acl_entries_count);
 
-	acl_data_total = kmalloc(sizeof(*acl_data_total) + (sizeof(struct mac_address) * num_bssid_total), GFP_KERNEL);
+	acl_data_total = kmalloc(struct_size(acl_data_total, mac_addrs, num_bssid_total), GFP_KERNEL);
 
 	if (!acl_data_total) {
 		SLSI_ERR(sdev, "Blacklist: Failed to allocate memory\n");
