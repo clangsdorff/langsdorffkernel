@@ -3857,6 +3857,22 @@ int32_t nvt_ts_resume(struct device *dev)
 #if SEC_LPWG_DUMP
     u8 lpwg_dump[5] = {0x7, 0x0, 0x0, 0x0, 0x0};
 #endif
+#if defined(ANDROID_VERSION) && (ANDROID_VERSION >= 14)
+    struct file *filp;
+    char buf[64];
+    mm_segment_t old_fs;
+
+    filp = filp_open("/sys/class/sec/tsp/cmd", O_WRONLY, 0);
+    if (!IS_ERR(filp) && !IS_ERR_OR_NULL(filp->f_op) && filp->f_op->write) {
+        old_fs = get_fs();
+        set_fs(KERNEL_DS);
+        snprintf(buf, sizeof(buf), "check_connection");
+        filp->f_op->write(filp, buf, strlen(buf), &filp->f_pos);
+        set_fs(old_fs);
+    }
+    if (!IS_ERR(filp))
+        fput(filp);
+#endif
 
     ts->lcd_esd_recovery = 0;
     cancel_delayed_work_sync(&ts->work_read_info);
