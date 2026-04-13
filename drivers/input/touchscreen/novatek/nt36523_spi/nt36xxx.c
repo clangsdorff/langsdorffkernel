@@ -27,6 +27,9 @@
 #include <linux/input/mt.h>
 
 #include "nt36xxx.h"
+#if IS_ENABLED(CONFIG_FB)
+#include <linux/fb.h>
+#endif
 #if NVT_TOUCH_ESD_PROTECT
 #include <linux/jiffies.h>
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
@@ -2819,6 +2822,32 @@ static int nvt_notifier_call(struct notifier_block *n, unsigned long data, void 
 }
 #endif
 
+#if IS_ENABLED(CONFIG_FB)
+static int nvt_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
+{
+	struct nvt_ts_data *ts = container_of(self, struct nvt_ts_data, fb_notif);
+	struct fb_event *evdata = data;
+	int *blank;
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+		blank = evdata->data;
+		switch (*blank) {
+		case FB_BLANK_POWERDOWN:
+			nvt_ts_suspend(&ts->client->dev);
+			break;
+		case FB_BLANK_UNBLANK:
+		case FB_BLANK_NORMAL:
+			nvt_ts_early_resume(&ts->client->dev);
+			nvt_ts_resume(&ts->client->dev);
+			break;
+		default:
+			break;
+		}
+	}
+	return 0;
+}
+#endif
+
 #if IS_ENABLED(CONFIG_VBUS_NOTIFIER)
 static void nvt_vbus_work(struct work_struct *work)
 {
@@ -3311,6 +3340,12 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 	panel_notifier_register(&ts->nb);
 #endif
 
+#if IS_ENABLED(CONFIG_FB)
+	ts->fb_notif.notifier_call = nvt_fb_notifier_callback;
+	if (fb_register_client(&ts->fb_notif))
+		input_err(true, &client->dev, "register fb_notifier failed\n");
+#endif
+
 #if IS_ENABLED(CONFIG_SAMSUNG_TUI)
 	stui_tsp_init(nvt_stui_tsp_enter, nvt_stui_tsp_exit, nvt_stui_tsp_type);
 	input_info(true, &client->dev,"secure touch support\n");
@@ -3455,6 +3490,10 @@ static int32_t nvt_ts_remove(struct spi_device *client)
 
 #if IS_ENABLED(CONFIG_VBUS_NOTIFIER)
 	vbus_notifier_unregister(&ts->vbus_nb);
+#endif
+
+#if IS_ENABLED(CONFIG_FB)
+	fb_unregister_client(&ts->fb_notif);
 #endif
 
 #if NVT_TOUCH_ESD_PROTECT

@@ -361,6 +361,7 @@ struct nvt_ts_data {
 	u16 lpwg_dump_buf_size;
 #endif
 	struct notifier_block nb;
+	struct notifier_block fb_notif;
 #if IS_ENABLED(CONFIG_VBUS_NOTIFIER)
 	struct notifier_block vbus_nb;
 	struct delayed_work work_vbus;
