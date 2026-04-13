@@ -20,6 +20,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include "ili9881x.h"
+#if IS_ENABLED(CONFIG_FB)
+#include <linux/fb.h>
+#endif
 
 /* Debug level */
 bool debug_en = DEBUG_OUTPUT;
@@ -497,6 +500,32 @@ static void ilitek_tddi_wq_init(void)
 	INIT_DELAYED_WORK(&ilits->work_print_info, ili_print_info_work);
 
 }
+
+#if IS_ENABLED(CONFIG_FB)
+static int ilitek_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
+{
+	struct ilitek_ts_data *ilits = container_of(self, struct ilitek_ts_data, fb_notif);
+	struct fb_event *evdata = data;
+	int *blank;
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+		blank = evdata->data;
+		switch (*blank) {
+		case FB_BLANK_POWERDOWN:
+			ili_sleep_handler(TP_EARLY_SUSPEND);
+			break;
+		case FB_BLANK_UNBLANK:
+		case FB_BLANK_NORMAL:
+			ili_sleep_handler(TP_EARLY_RESUME);
+			ili_sleep_handler(TP_RESUME);
+			break;
+		default:
+			break;
+		}
+	}
+	return 0;
+}
+#endif
 
 int ili_sleep_handler(int mode)
 {
@@ -1217,6 +1246,10 @@ void ili_dev_remove(void)
 
 #if IS_ENABLED(CONFIG_VBUS_NOTIFIER)
 	cancel_delayed_work_sync(&ilits->work_vbus);
+#endif
+
+#if IS_ENABLED(CONFIG_FB)
+	fb_unregister_client(&ilits->fb_notif);
 #endif
 
 	ili_shutdown_is_on_going_tsp = true;

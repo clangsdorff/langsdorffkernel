@@ -944,6 +944,7 @@ struct ilitek_ts_data {
 	int usb_plug_status;
 	struct delayed_work work_vbus;
 #endif
+	struct notifier_block fb_notif;
 
 	u8 *lpwg_dump_buf;
 	u16 lpwg_dump_buf_idx;
