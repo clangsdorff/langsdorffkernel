@@ -310,6 +310,7 @@ struct fts_ts_data {
 	struct notifier_block vbus_nb;
 	bool ta_status;
 #endif
+	struct notifier_block fb_notif;
 	bool set_test_fw;
 
 	u8 *lpwg_dump_buf;
