@@ -21,6 +21,9 @@
  */
 
 #include "ili9881x.h"
+#if IS_ENABLED(CONFIG_FB)
+#include <linux/fb.h>
+#endif
 
 #if IS_ENABLED(CONFIG_INPUT_SEC_SECURE_TOUCH)
 static irqreturn_t ilitek_plat_isr_bottom_half(int irq, void *dev_id);
