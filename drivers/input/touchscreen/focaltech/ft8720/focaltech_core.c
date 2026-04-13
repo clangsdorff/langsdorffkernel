@@ -2326,7 +2326,7 @@ int fts_charger_attached(struct fts_ts_data *ts_data, bool status)
 }
 
 #if IS_ENABLED(CONFIG_FB)
-static int fts_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
+int fts_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
 	struct fts_ts_data *ts_data = container_of(self, struct fts_ts_data, fb_notif);
 	struct fb_event *evdata = data;

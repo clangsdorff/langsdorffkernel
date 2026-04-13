@@ -502,7 +502,7 @@ static void ilitek_tddi_wq_init(void)
 }
 
 #if IS_ENABLED(CONFIG_FB)
-static int ilitek_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
+int ilitek_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
 	struct ilitek_ts_data *ilits = container_of(self, struct ilitek_ts_data, fb_notif);
 	struct fb_event *evdata = data;
