@@ -1157,6 +1157,12 @@ static int ilitek_plat_probe(void)
 	vbus_notifier_register(&ilits->vbus_nb, ilitek_vbus_notifier, VBUS_NOTIFY_DEV_CHARGER);
 #endif
 
+#if IS_ENABLED(CONFIG_FB)
+	ilits->fb_notif.notifier_call = ilitek_fb_notifier_callback;
+	if (fb_register_client(&ilits->fb_notif))
+		input_err(true, ilits->dev, "register fb_notifier failed\n");
+#endif
+
 	ili_ic_lpwg_dump_buf_init();
 
 	input_info(true, ilits->dev, "%s ILITEK Driver loaded successfully!", __func__);
