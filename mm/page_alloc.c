@@ -8439,8 +8439,8 @@ int __meminit init_per_zone_wmark_min(void)
 
 	if (new_min_free_kbytes > user_min_free_kbytes) {
 		min_free_kbytes = new_min_free_kbytes;
-		if (min_free_kbytes < 128)
-			min_free_kbytes = 128;
+		if (min_free_kbytes < 49152)
+			min_free_kbytes = 49152;
 		if (min_free_kbytes > 262144)
 			min_free_kbytes = 262144;
 	} else {

@@ -944,6 +944,7 @@ struct ilitek_ts_data {
 	int usb_plug_status;
 	struct delayed_work work_vbus;
 #endif
+	struct notifier_block fb_notif;
 
 	u8 *lpwg_dump_buf;
 	u16 lpwg_dump_buf_idx;
@@ -1337,6 +1338,9 @@ extern void ili_wq_ctrl(int type, int ctrl);
 extern int ili_mp_test_handler(char *apk, bool lcm_on);
 extern int ili_report_handler(void);
 extern int ili_sleep_handler(int mode);
+#if IS_ENABLED(CONFIG_FB)
+extern int ilitek_fb_notifier_callback(struct notifier_block *nb, unsigned long event, void *data);
+#endif
 extern int ili_reset_ctrl(int mode);
 extern int ili_tddi_init(void);
 extern int ili_dev_init(struct ilitek_hwif_info *hwif);

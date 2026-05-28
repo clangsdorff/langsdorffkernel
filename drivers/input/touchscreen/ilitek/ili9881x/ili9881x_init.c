@@ -21,6 +21,9 @@
  */
 
 #include "ili9881x.h"
+#if IS_ENABLED(CONFIG_FB)
+#include <linux/fb.h>
+#endif
 
 #if IS_ENABLED(CONFIG_INPUT_SEC_SECURE_TOUCH)
 static irqreturn_t ilitek_plat_isr_bottom_half(int irq, void *dev_id);
@@ -1155,6 +1158,12 @@ static int ilitek_plat_probe(void)
 #if IS_ENABLED(CONFIG_VBUS_NOTIFIER)
 	INIT_DELAYED_WORK(&ilits->work_vbus, ilitek_vbus_work);
 	vbus_notifier_register(&ilits->vbus_nb, ilitek_vbus_notifier, VBUS_NOTIFY_DEV_CHARGER);
+#endif
+
+#if IS_ENABLED(CONFIG_FB)
+	ilits->fb_notif.notifier_call = ilitek_fb_notifier_callback;
+	if (fb_register_client(&ilits->fb_notif))
+		input_err(true, ilits->dev, "register fb_notifier failed\n");
 #endif
 
 	ili_ic_lpwg_dump_buf_init();
