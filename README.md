@@ -8,7 +8,7 @@
 - Dex touchpad support for OneUI ROMs.
 - Built-in hook for the `${fps_position}` bug in flagship FOD ports.
 - Updated `sdfat` driver to v2.8.1 (from a33x).
-- AVB and some security checks disabled (varies by build type).
+- AVB and some security checks disabled.
 - Based on Linux 5.10.236.
 
 **Known Issues**
@@ -33,6 +33,7 @@
 
 **Credits**
 - Base kernel: [Gabriel2392](https://github.com/Gabriel2392)
+- CPU & GPU Overclock, `${fps_position}` hook, updated sdfat driver: [Gabriel2392](https://github.com/Gabriel2392)
 - Dex touchpad support: [rsuntk](https://github.com/rsuntk)
 - KernelSU: [tiann](https://github.com/tiann/)
 - r51p0 driver: [xxmustafacooTR](https://github.com/xxmustafacooTR/)
@@ -44,4 +45,4 @@
 
 **Device & Notes**
 - Device: A145F (Exynos 850)
-- Bootloader: U9
+- Bootloader: A145FXXU9DYG5
