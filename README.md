@@ -16,14 +16,14 @@
 
 # Installation
 **Installation — Odin3**
-1. Download the latest release from the project's GitHub Releases.
+1. Download the latest ".tar" release from the project's GitHub Releases.
 3. Power off the device.
 4. Boot into Download Mode (connect to PC while holding Volume UP + Volume DOWN).
 5. Open Odin3 and place the `.tar` into the `AP` slot.
 6. Flash and wait for the device to reboot.
 
 **Installation — TWRP**
-1. Download the latest release from the project's GitHub Releases.
+1. Download the latest ".zip" release from the project's GitHub Releases.
 3. Boot into Recovery Mode (TWRP).
 4. Select `Install` → choose the `.zip` file.
 5. Flash and reboot.
