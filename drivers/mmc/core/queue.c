@@ -11,6 +11,7 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/backing-dev.h>
+#include <linux/sizes.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -425,7 +426,7 @@ static inline bool mmc_merge_capable(struct mmc_host *host)
 }
 
 /* Set queue depth to get a reasonable value for q->nr_requests */
-#define MMC_QUEUE_DEPTH 64
+#define MMC_QUEUE_DEPTH 128
 
 /**
  * mmc_init_queue - initialise a queue structure.
@@ -490,6 +491,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 	blk_queue_rq_timeout(mq->queue, 20 * HZ);
 
 	mmc_setup_queue(mq, card);
+	mq->queue->backing_dev_info->ra_pages = SZ_2M / PAGE_SIZE;
+	blk_queue_flag_clear(QUEUE_FLAG_IO_STAT, mq->queue);
 	return 0;
 
 free_tag_set:
