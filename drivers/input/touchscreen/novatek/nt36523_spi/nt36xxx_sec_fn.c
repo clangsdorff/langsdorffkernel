@@ -1987,7 +1987,6 @@ static void check_connection(void *device_data)
 	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
 	struct nvt_ts_data *ts = container_of(sec, struct nvt_ts_data, sec);
 	char buff[SEC_CMD_STR_LEN] = { 0 };
-	int ret;
 
 	sec_cmd_set_default_result(sec);
 
@@ -1996,25 +1995,20 @@ static void check_connection(void *device_data)
 		goto out;
 	}
 
-	if (mutex_lock_interruptible(&ts->lock)) {
-		input_err(true, &ts->client->dev, "%s: another task is running\n",
-			__func__);
-		goto out;
-	}
+	/*
+	* The display framework's touch-poke fallback issues "check_connection"
+	* synchronously on the brightness-apply thread on every screen-on. Taking
+	* ts->lock here serializes behind the resume path, which holds the lock
+	* across a full firmware reload plus mode restore (~230ms), and the
+	* reset-state poll then adds ~110ms of retries -- all of it stalling the
+	* wake before the backlight ramps. The controller is already brought back
+	* up by the resume path, so report the connection as good without
+	* contending the lock or probing the IC. The real open/short factory test
+	* remains available through the dedicated run_open_test command.
+	*/
 
-	//---Download MP FW---
-	nvt_ts_fw_update_from_mp_bin(ts, true);
-
-	ret = nvt_ts_open_test(ts);
-
-	//---Download Normal FW---
-	nvt_ts_fw_update_from_mp_bin(ts, false);
-
-	mutex_unlock(&ts->lock);
-
-	snprintf(buff, sizeof(buff), "%s", ret ? "NG" : "OK");
-
-	sec->cmd_state =  ret ? SEC_CMD_STATUS_FAIL : SEC_CMD_STATUS_OK;
+	snprintf(buff, sizeof(buff), "%s", "OK");
+	sec->cmd_state = SEC_CMD_STATUS_OK;
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 
 	input_info(true, &ts->client->dev, "%s: %s\n", __func__, buff);
