@@ -109,11 +109,11 @@ pub fn getprop(prop: &str) -> Option<String> {
 
 pub fn is_safe_mode() -> bool {
     let safemode = getprop("persist.sys.safemode")
-        .filter(|prop| prop == "1")
-        .is_some()
+        .as_ref()
+        .is_some_and(|prop| prop == "1")
         || getprop("ro.sys.safemode")
-            .filter(|prop| prop == "1")
-            .is_some();
+            .as_ref()
+            .is_some_and(|prop| prop == "1");
     log::info!("safemode: {safemode}");
     if safemode {
         return true;
@@ -165,8 +165,8 @@ pub fn switch_cgroups() {
     switch_cgroup("/sys/fs/cgroup", pid);
 
     if getprop("ro.config.per_app_memcg")
-        .filter(|prop| prop == "false")
-        .is_none()
+        .as_ref()
+        .is_none_or(|prop| prop != "false")
     {
         switch_cgroup("/dev/memcg/apps", pid);
     }
@@ -189,28 +189,29 @@ fn link_ksud_to_bin() -> Result<()> {
     Ok(())
 }
 
-pub fn install(magiskboot: Option<PathBuf>) -> Result<()> {
+pub fn install(libadbroot: Option<PathBuf>) -> Result<()> {
     ensure_dir_exists(defs::ADB_DIR)?;
     let _ = std::fs::remove_file(defs::DAEMON_PATH);
     std::fs::copy(
         std::env::current_exe().with_context(|| "Failed to get self exe path")?,
         defs::DAEMON_PATH,
     )?;
-    restorecon::lsetfilecon(defs::DAEMON_PATH, restorecon::ADB_CON)?;
+    restorecon::lsetfilecon(defs::DAEMON_PATH, restorecon::KSU_CON)?;
     // install binary assets
     assets::ensure_binaries(false).with_context(|| "Failed to extract assets")?;
 
     link_ksud_to_bin()?;
 
-    if let Some(magiskboot) = magiskboot {
-        ensure_dir_exists(defs::BINARY_DIR)?;
-        let _ = std::fs::copy(magiskboot, defs::MAGISKBOOT_PATH);
+    if let Some(libadbroot) = libadbroot {
+        ensure_dir_exists(defs::LIBRARY_DIR)?;
+        let _ = std::fs::remove_file(defs::LIBADBROOT_PATH);
+        let _ = std::fs::copy(libadbroot, defs::LIBADBROOT_PATH);
     }
 
     Ok(())
 }
 
-pub fn uninstall(magiskboot_path: Option<PathBuf>, package_name: &str) -> Result<()> {
+pub fn uninstall(package_name: &str) -> Result<()> {
     if Path::new(defs::MODULE_DIR).exists() {
         println!("- Uninstall modules..");
         module::uninstall_all_modules()?;
@@ -220,11 +221,12 @@ pub fn uninstall(magiskboot_path: Option<PathBuf>, package_name: &str) -> Result
     std::fs::remove_dir_all(defs::WORKING_DIR).ok();
     std::fs::remove_file(defs::DAEMON_PATH).ok();
     std::fs::remove_dir_all(defs::MODULE_DIR).ok();
+    std::fs::remove_dir_all(defs::PREINIT_DIR_WATCHDOG).ok();
+    std::fs::remove_dir_all(defs::PREINIT_DIR_DEFAULT).ok();
     println!("- Restore boot image..");
     boot_patch::restore(BootRestoreArgs {
         boot: None,
         flash: true,
-        magiskboot: magiskboot_path,
         out: None,
         out_name: None,
     })?;
@@ -247,8 +249,10 @@ pub fn reset_std() -> Result<()> {
 }
 
 pub fn daemonize_with<F: FnOnce() -> Result<()>>(use_init_pgrp: bool, configure: F) -> Result<()> {
-    create_daemon_impl(use_init_pgrp, configure)?;
-    unsafe { libc::_exit(0) }
+    if !create_daemon_impl(use_init_pgrp, configure)? {
+        unsafe { libc::_exit(0) }
+    }
+    Ok(())
 }
 
 pub fn daemonize(use_init_pgrp: bool) -> Result<()> {
@@ -292,17 +296,27 @@ fn create_daemon_impl<F: FnOnce() -> Result<()>>(
         }
     }
 
-    detach_process_group(use_init_pgrp);
-    switch_cgroups();
-    configure()?;
-    reset_std()?;
+    let do_configure = || -> Result<()> {
+        detach_process_group(use_init_pgrp);
+        switch_cgroups();
+        configure()?;
+        reset_std()?;
 
-    unsafe {
-        let pid = libc::fork();
-        if pid < 0 {
-            bail!("fork error {}", std::io::Error::last_os_error());
-        } else if pid > 0 {
-            libc::_exit(0);
+        unsafe {
+            let pid = libc::fork();
+            if pid < 0 {
+                bail!("fork error {}", std::io::Error::last_os_error());
+            } else if pid > 0 {
+                libc::_exit(0);
+            }
+        }
+        Ok(())
+    };
+
+    if let Err(e) = do_configure() {
+        log::error!("failed to configure daemon: {e:?}");
+        unsafe {
+            libc::_exit(1);
         }
     }
 

@@ -21,8 +21,11 @@
 #include "ksu.h"
 #include "infra/file_wrapper.h"
 #include "selinux/selinux.h"
+#include "feature/adb_root.h"
+#include "feature/selinux_hide.h"
 #include "hook/setuid_hook.h"
 #include "feature/sucompat.h"
+
 
 // workaround for A12-5.10 kernel
 // Some third-party kernel (e.g. linegaeOS) uses wrong toolchain, which supports
@@ -68,6 +71,9 @@ bool allow_shell = false;
 #endif
 module_param(allow_shell, bool, 0);
 
+bool ksu_no_custom_rc = false;
+module_param_named(norc, ksu_no_custom_rc, bool, 0);
+
 int __init kernelsu_init(void)
 {
 #ifdef CONFIG_KSU_DEBUG
@@ -79,6 +85,7 @@ int __init kernelsu_init(void)
     pr_alert("**     NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE    **");
     pr_alert("*************************************************************");
 #endif
+
     if (allow_shell) {
         pr_alert("shell is allowed at init!");
     }
@@ -86,7 +93,12 @@ int __init kernelsu_init(void)
     ksu_cred = prepare_creds();
     if (!ksu_cred) {
         pr_err("prepare cred failed!\n");
+        return -ENOSYS;
     }
+
+#ifdef CONFIG_KSU_SUSFS
+    susfs_init();
+#endif // #ifdef KSU_SUSFS
 
     ksu_feature_init();
 
@@ -98,6 +110,10 @@ int __init kernelsu_init(void)
 
     ksu_sulog_init();
 
+    ksu_adb_root_init();
+
+    ksu_selinux_hide_init();
+
     ksu_allowlist_init();
 
     ksu_throne_tracker_init();
@@ -106,13 +122,6 @@ int __init kernelsu_init(void)
 
     ksu_file_wrapper_init();
 
-    susfs_init();
-
-#ifdef MODULE
-#ifndef CONFIG_KSU_DEBUG
-    kobject_del(&THIS_MODULE->mkobj.kobj);
-#endif
-#endif
     return 0;
 }
 
@@ -120,22 +129,27 @@ void __exit kernelsu_exit(void)
 {
     ksu_supercalls_exit();
 
+    ksu_ksud_exit();
+
     // Wait for any in-flight RCU readers (e.g. handler traversing allow_list)
     synchronize_rcu();
 
-    // Now safe to release data structures
+    // Phase 2: Now safe to release data structures
     ksu_observer_exit();
 
     ksu_throne_tracker_exit();
 
     ksu_allowlist_exit();
 
+    ksu_selinux_hide_exit();
+
+    ksu_adb_root_exit();
+
     ksu_sulog_exit();
+
     ksu_feature_exit();
 
-    if (ksu_cred) {
-        put_cred(ksu_cred);
-    }
+    put_cred(ksu_cred);
 }
 
 #if NEED_OWN_STACKPROTECTOR

@@ -23,6 +23,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,9 +49,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Code
@@ -68,15 +71,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.FixedScale
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -90,24 +98,28 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.kyant.capsule.ContinuousRoundedRectangle
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeSource
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.model.Module
 import me.weishu.kernelsu.data.model.ModuleUpdateInfo
 import me.weishu.kernelsu.ui.component.ListPopupDefaults
+import me.weishu.kernelsu.ui.component.ObserveAsEvents
+import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
+import me.weishu.kernelsu.ui.component.SearchStatus
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
 import me.weishu.kernelsu.ui.component.dialog.rememberLoadingDialog
+import me.weishu.kernelsu.ui.component.miuix.SearchBarFake
 import me.weishu.kernelsu.ui.component.miuix.SearchBox
 import me.weishu.kernelsu.ui.component.miuix.SearchPager
 import me.weishu.kernelsu.ui.component.rebootlistpopup.RebootListPopupMiuix
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
+import me.weishu.kernelsu.ui.util.BlurredBar
 import me.weishu.kernelsu.ui.util.getFileName
+import me.weishu.kernelsu.ui.util.reboot
+import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownImpl
@@ -121,20 +133,25 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarDuration
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.SnackbarResult
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberPullToRefreshState
-import top.yukonga.miuix.kmp.extra.SuperDialog
-import top.yukonga.miuix.kmp.extra.SuperListPopup
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.Download
 import top.yukonga.miuix.kmp.icon.extended.MoreCircle
 import top.yukonga.miuix.kmp.icon.extended.Undo
 import top.yukonga.miuix.kmp.icon.extended.UploadCloud
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -144,7 +161,7 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 fun ModulePagerMiuix(
     uiState: ModuleUiState,
     confirmDialogState: ModuleConfirmDialogState?,
-    effect: ModuleEffect?,
+    moduleEvent: Flow<ModuleEffect>,
     actions: ModuleActions,
     bottomInnerPadding: Dp,
 ) {
@@ -152,6 +169,8 @@ fun ModulePagerMiuix(
     val searchStatus = uiState.searchStatus
 
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val density = LocalDensity.current
     val enableBlur = LocalEnableBlur.current
 
     val installPromptWithName = stringResource(R.string.module_install_prompt_with_name, "%s")
@@ -201,19 +220,28 @@ fun ModulePagerMiuix(
         }
     }
 
-    LaunchedEffect(effect) {
-        when (effect) {
+    val scope = rememberCoroutineScope()
+    val snackbarJob = remember { mutableStateOf<Job?>(null) }
+    ObserveAsEvents(moduleEvent) { event ->
+        when (event) {
             is ModuleEffect.Toast -> {
-                Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
-                actions.onConsumeEffect()
+                Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
             }
 
             is ModuleEffect.SnackBar -> {
-                Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
-                actions.onConsumeEffect()
+                // Cancel the previous reboot snackbar so a new one replaces it instead of queueing
+                snackbarJob.value?.cancel()
+                snackbarJob.value = scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = event.message,
+                        actionLabel = context.getString(R.string.reboot),
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        reboot()
+                    }
+                }
             }
-
-            null -> Unit
         }
     }
 
@@ -224,6 +252,7 @@ fun ModulePagerMiuix(
     }
 
     val listState = rememberLazyListState()
+    val refreshTick = remember { mutableStateOf(0) }
     val nestedScrollConnection = remember(uiState.installButtonVisible) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -251,88 +280,106 @@ fun ModulePagerMiuix(
         animationSpec = tween(durationMillis = 350)
     )
 
-    val hazeState = remember { HazeState() }
-    val hazeStyle = if (enableBlur) {
-        HazeStyle(
-            backgroundColor = colorScheme.surface,
-            tint = HazeTint(colorScheme.surface.copy(0.8f))
-        )
-    } else {
-        HazeStyle.Unspecified
-    }
+    val backdrop = rememberBlurBackdrop(enableBlur)
+    val blurActive = backdrop != null
+    val barColor = if (blurActive) Color.Transparent else colorScheme.surface
 
     Scaffold(
         topBar = {
-            searchStatus.TopAppBarAnim(hazeState = hazeState, hazeStyle = hazeStyle) {
-                TopAppBar(
-                    color = if (enableBlur) Color.Transparent else colorScheme.surface,
-                    title = stringResource(R.string.module),
-                    actions = {
-                        Box {
-                            val showTopPopup = remember { mutableStateOf(false) }
+            BlurredBar(backdrop) {
+                searchStatus.TopAppBarAnim(backgroundColor = barColor) {
+                    TopAppBar(
+                        color = barColor,
+                        title = stringResource(R.string.module),
+                        actions = {
+                            Box {
+                                val showTopPopup = remember { mutableStateOf(false) }
+                                IconButton(
+                                    onClick = { showTopPopup.value = true },
+                                    holdDownState = showTopPopup.value
+                                ) {
+                                    Icon(
+                                        imageVector = MiuixIcons.MoreCircle,
+                                        tint = colorScheme.onSurface,
+                                        contentDescription = null
+                                    )
+                                }
+                                OverlayListPopup(
+                                    show = showTopPopup.value,
+                                    popupPositionProvider = ListPopupDefaults.MenuPositionProvider,
+                                    alignment = PopupPositionProvider.Align.TopEnd,
+                                    onDismissRequest = {
+                                        showTopPopup.value = false
+                                    },
+                                    content = {
+                                        ListPopupColumn {
+                                            DropdownImpl(
+                                                text = stringResource(R.string.module_sort_action_first),
+                                                optionSize = 2,
+                                                isSelected = uiState.sortActionFirst,
+                                                onSelectedIndexChange = {
+                                                    actions.onToggleSortActionFirst()
+                                                    showTopPopup.value = false
+                                                },
+                                                index = 0
+                                            )
+                                            DropdownImpl(
+                                                text = stringResource(R.string.module_sort_enabled_first),
+                                                optionSize = 2,
+                                                isSelected = uiState.sortEnabledFirst,
+                                                onSelectedIndexChange = {
+                                                    actions.onToggleSortEnabledFirst()
+                                                    showTopPopup.value = false
+                                                },
+                                                index = 1
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                            RebootListPopupMiuix(
+                                alignment = PopupPositionProvider.Align.TopEnd,
+                            )
+                        },
+                        navigationIcon = {
                             IconButton(
-                                modifier = Modifier.padding(end = 8.dp),
-                                onClick = { showTopPopup.value = true },
-                                holdDownState = showTopPopup.value
+                                onClick = actions.onOpenRepo,
                             ) {
                                 Icon(
-                                    imageVector = MiuixIcons.MoreCircle,
+                                    imageVector = MiuixIcons.Download,
                                     tint = colorScheme.onSurface,
                                     contentDescription = null
                                 )
                             }
-                            SuperListPopup(
-                                show = showTopPopup.value,
-                                popupPositionProvider = ListPopupDefaults.MenuPositionProvider,
-                                alignment = PopupPositionProvider.Align.TopEnd,
-                                onDismissRequest = {
-                                    showTopPopup.value = false
-                                },
-                                content = {
-                                    ListPopupColumn {
-                                        DropdownImpl(
-                                            text = stringResource(R.string.module_sort_action_first),
-                                            optionSize = 2,
-                                            isSelected = uiState.sortActionFirst,
-                                            onSelectedIndexChange = {
-                                                actions.onToggleSortActionFirst()
-                                                showTopPopup.value = false
-                                            },
-                                            index = 0
-                                        )
-                                        DropdownImpl(
-                                            text = stringResource(R.string.module_sort_enabled_first),
-                                            optionSize = 2,
-                                            isSelected = uiState.sortEnabledFirst,
-                                            onSelectedIndexChange = {
-                                                actions.onToggleSortEnabledFirst()
-                                                showTopPopup.value = false
-                                            },
-                                            index = 1
-                                        )
+                        },
+                        scrollBehavior = scrollBehavior,
+                        bottomContent = {
+                            Box(
+                                modifier = Modifier
+                                    .alpha(if (searchStatus.isCollapsed()) 1f else 0f)
+                                    .onGloballyPositioned { coordinates ->
+                                        with(density) {
+                                            val newOffsetY = coordinates.positionInWindow().y.toDp()
+                                            if (searchStatus.offsetY != newOffsetY) {
+                                                actions.onSearchStatusChange(searchStatus.copy(offsetY = newOffsetY))
+                                            }
+                                        }
                                     }
-                                }
-                            )
+                                    .then(
+                                        if (searchStatus.isCollapsed()) {
+                                            Modifier.pointerInput(Unit) {
+                                                detectTapGestures {
+                                                    actions.onSearchStatusChange(searchStatus.copy(current = SearchStatus.Status.EXPANDING))
+                                                }
+                                            }
+                                        } else Modifier,
+                                    ),
+                            ) {
+                                SearchBarFake(searchStatus.label, dynamicTopPadding)
+                            }
                         }
-                        RebootListPopupMiuix(
-                            modifier = Modifier.padding(end = 16.dp),
-                            alignment = PopupPositionProvider.Align.TopEnd,
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            modifier = Modifier.padding(start = 16.dp),
-                            onClick = actions.onOpenRepo,
-                        ) {
-                            Icon(
-                                imageVector = MiuixIcons.Download,
-                                tint = colorScheme.onSurface,
-                                contentDescription = null
-                            )
-                        }
-                    },
-                    scrollBehavior = scrollBehavior
-                )
+                    )
+                }
             }
         },
         floatingActionButton = {
@@ -427,6 +474,9 @@ fun ModulePagerMiuix(
                 )
             }
         },
+        snackbarHost = {
+            SnackbarHost(state = snackbarHostState)
+        },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)
     ) { innerPadding ->
         if (uiState.magiskInstalled) {
@@ -444,26 +494,16 @@ fun ModulePagerMiuix(
             return@Scaffold
         }
         val layoutDirection = LocalLayoutDirection.current
-        val pullToRefreshState = rememberPullToRefreshState()
-        val refreshTexts = listOf(
-            stringResource(R.string.refresh_pulling),
-            stringResource(R.string.refresh_release),
-            stringResource(R.string.refresh_refresh),
-            stringResource(R.string.refresh_complete),
-        )
-        searchStatus.SearchBox(
-            onSearchStatusChange = actions.onSearchStatusChange,
-            searchBarTopPadding = dynamicTopPadding,
-            contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding(),
-                start = innerPadding.calculateStartPadding(layoutDirection),
-                end = innerPadding.calculateEndPadding(layoutDirection)
-            ),
-            hazeState = hazeState,
-            hazeStyle = hazeStyle
-        ) { boxHeight ->
+        searchStatus.SearchBox {
+            val pullToRefreshState = rememberPullToRefreshState()
+            val refreshTexts = listOf(
+                stringResource(R.string.refresh_pulling),
+                stringResource(R.string.refresh_release),
+                stringResource(R.string.refresh_refresh),
+                stringResource(R.string.refresh_complete),
+            )
             val contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding() + boxHeight.value + 6.dp,
+                top = innerPadding.calculateTopPadding() + 6.dp,
                 start = innerPadding.calculateStartPadding(layoutDirection),
                 end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = bottomInnerPadding,
@@ -486,7 +526,10 @@ fun ModulePagerMiuix(
                 PullToRefresh(
                     isRefreshing = uiState.isRefreshing,
                     pullToRefreshState = pullToRefreshState,
-                    onRefresh = actions.onRefresh,
+                    onRefresh = {
+                        actions.onRefresh()
+                        refreshTick.value++
+                    },
                     refreshTexts = refreshTexts,
                     contentPadding = contentPadding,
                 ) {
@@ -509,22 +552,33 @@ fun ModulePagerMiuix(
                             )
                         }
                     } else {
-                        ModuleList(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .scrollEndHaptic()
-                                .overScrollVertical()
-                                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                                .nestedScroll(nestedScrollConnection)
-                                .let { if (enableBlur) it.hazeSource(state = hazeState) else it },
-                            modules = modules,
-                            updateInfoMap = uiState.updateInfo,
-                            actions = actions,
-                            onModuleAddShortcut = { module, type ->
-                                onModuleAddShortcut(module, type)
-                            },
-                            contentPadding = contentPadding,
-                        )
+                        val latestModules = rememberUpdatedState(modules)
+                        val latestRefreshing = rememberUpdatedState(uiState.isRefreshing)
+                        ScrollToTopOnChange(
+                            listState,
+                            uiState.sortEnabledFirst,
+                            uiState.sortActionFirst,
+                            refreshTick.value,
+                            isBusy = { latestRefreshing.value },
+                        ) { latestModules.value }
+                        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
+                            ModuleList(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .scrollEndHaptic()
+                                    .overScrollVertical()
+                                    .nestedScroll(scrollBehavior.nestedScrollConnection)
+                                    .nestedScroll(nestedScrollConnection),
+                                modules = modules,
+                                updateInfoMap = uiState.updateInfo,
+                                actions = actions,
+                                onModuleAddShortcut = { module, type ->
+                                    onModuleAddShortcut(module, type)
+                                },
+                                contentPadding = contentPadding,
+                                listState = listState,
+                            )
+                        }
                     }
                 }
             }
@@ -555,7 +609,7 @@ private fun ModuleShortcutDialog(
     onDeleteShortcut: () -> Unit,
     onConfirmShortcut: () -> Unit,
 ) {
-    SuperDialog(
+    OverlayDialog(
         show = show,
         title = stringResource(R.string.module_shortcut_title),
         onDismissRequest = onDismissRequest,
@@ -569,7 +623,7 @@ private fun ModuleShortcutDialog(
                     modifier = Modifier
                         .padding(vertical = 16.dp)
                         .size(100.dp)
-                        .clip(ContinuousRoundedRectangle(25.dp))
+                        .clip(RoundedCornerShape(25.dp))
                 ) {
                     val preview = shortcutState.previewIcon
                     if (preview != null) {
@@ -660,10 +714,12 @@ private fun ModuleList(
     actions: ModuleActions,
     onModuleAddShortcut: (Module, ShortcutType) -> Unit,
     contentPadding: PaddingValues,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     val loadingDialog = rememberLoadingDialog()
     val scope = rememberCoroutineScope()
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxHeight(),
         contentPadding = contentPadding,
         overscrollEffect = null,
@@ -773,7 +829,7 @@ fun ModuleItem(
                                 fontSize = 12.sp,
                                 color = updateTint,
                                 modifier = Modifier
-                                    .clip(ContinuousRoundedRectangle(6.dp))
+                                    .clip(RoundedCornerShape(6.dp))
                                     .background(updateBg)
                                     .padding(horizontal = 6.dp, vertical = 2.dp),
                                 fontWeight = FontWeight(750),
@@ -947,7 +1003,7 @@ fun ModuleItem(
                 exit = fadeOut()
             ) {
                 IconButton(
-                    modifier = Modifier.padding(end = 16.dp),
+                    modifier = Modifier.padding(end = 8.dp),
                     backgroundColor = updateBg,
                     enabled = !module.remove,
                     minHeight = 35.dp,

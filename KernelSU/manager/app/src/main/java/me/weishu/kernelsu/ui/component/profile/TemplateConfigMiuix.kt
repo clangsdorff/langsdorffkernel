@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Create
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -18,8 +14,8 @@ import me.weishu.kernelsu.ui.util.listAppProfileTemplates
 import me.weishu.kernelsu.ui.util.setSepolicy
 import me.weishu.kernelsu.ui.viewmodel.getTemplateInfoById
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.extra.SuperArrow
-import top.yukonga.miuix.kmp.extra.SuperDropdown
+import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -38,7 +34,7 @@ fun TemplateConfigMiuix(
     val noTemplates = profileTemplates.isEmpty()
 
     if (noTemplates) {
-        SuperArrow(
+        ArrowPreference(
             modifier = modifier,
             title = stringResource(R.string.app_profile_template_create),
             startAction = {
@@ -52,21 +48,21 @@ fun TemplateConfigMiuix(
             onClick = onManageTemplate,
         )
     } else {
-        var template by rememberSaveable { mutableStateOf(profile.rootTemplate ?: profileTemplates[0]) }
+        val template = profile.rootTemplate ?: profileTemplates[0]
 
         Column(modifier = modifier) {
-            SuperDropdown(
+            OverlayDropdownPreference(
                 title = stringResource(R.string.profile_template),
                 items = profileTemplates,
                 selectedIndex = profileTemplates.indexOf(template).takeIf { it >= 0 } ?: 0,
                 onSelectedIndexChange = { index ->
-                    if (index < 0 || index >= profileTemplates.size) return@SuperDropdown
-                    template = profileTemplates[index]
-                    val templateInfo = getTemplateInfoById(template)
-                    if (templateInfo != null && setSepolicy(template, templateInfo.rules.joinToString("\n"))) {
+                    if (index < 0 || index >= profileTemplates.size) return@OverlayDropdownPreference
+                    val selected = profileTemplates[index]
+                    val templateInfo = getTemplateInfoById(selected)
+                    if (templateInfo != null && setSepolicy(selected, templateInfo.rules.joinToString("\n"))) {
                         onProfileChange(
                             profile.copy(
-                                rootTemplate = template,
+                                rootTemplate = selected,
                                 rootUseDefault = false,
                                 uid = templateInfo.uid,
                                 gid = templateInfo.gid,
@@ -80,7 +76,7 @@ fun TemplateConfigMiuix(
                 },
                 maxHeight = 280.dp
             )
-            SuperArrow(
+            ArrowPreference(
                 title = stringResource(R.string.app_profile_template_view),
                 onClick = { onViewTemplate(template) }
             )

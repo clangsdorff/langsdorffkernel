@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -22,8 +21,8 @@ import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
-import top.yukonga.miuix.kmp.extra.SuperArrow
-import top.yukonga.miuix.kmp.extra.SuperDialog
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 
 @Composable
 fun SuperEditArrow(
@@ -38,12 +37,11 @@ fun SuperEditArrow(
     onValueChange: ((Int) -> Unit)? = null
 ) {
     val showDialog = remember { mutableStateOf(false) }
-    val dialogTextFieldValue = remember { mutableIntStateOf(defaultValue) }
 
-    SuperArrow(
+    ArrowPreference(
         title = title,
         titleColor = titleColor,
-        summary = dialogTextFieldValue.intValue.toString(),
+        summary = defaultValue.toString(),
         summaryColor = summaryColor,
         startAction = startAction,
         modifier = modifier,
@@ -59,10 +57,9 @@ fun SuperEditArrow(
         title = title,
         show = showDialog.value,
         onDismissRequest = { showDialog.value = false },
-        dialogTextFieldValue = dialogTextFieldValue.intValue,
+        dialogTextFieldValue = defaultValue,
         onValueChange = {
-            dialogTextFieldValue.intValue = it
-            onValueChange?.invoke(dialogTextFieldValue.intValue)
+            onValueChange?.invoke(it)
         }
     )
 
@@ -76,10 +73,9 @@ private fun EditDialog(
     dialogTextFieldValue: Int,
     onValueChange: (Int) -> Unit,
 ) {
-    val inputTextFieldValue = remember { mutableIntStateOf(dialogTextFieldValue) }
-    val filter = remember(key1 = inputTextFieldValue.intValue) { FilterNumber(dialogTextFieldValue) }
+    val filter = remember(dialogTextFieldValue) { FilterNumber(dialogTextFieldValue) }
 
-    SuperDialog(
+    OverlayDialog(
         show = show,
         title = title,
         onDismissRequest = {
