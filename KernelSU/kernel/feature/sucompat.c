@@ -14,6 +14,7 @@
 #include <linux/susfs_def.h>
 #include <linux/namei.h>
 #include <linux/minmax.h>
+#include <linux/fs_struct.h>
 #include "selinux/selinux.h"
 #include "objsec.h"
 
@@ -23,6 +24,7 @@
 #include "klog.h" // IWYU pragma: keep
 #include "runtime/ksud.h"
 #include "feature/sucompat.h"
+#include "feature/adb_root.h"
 #include "policy/app_profile.h"
 #include "hook/syscall_hook.h"
 #include "sulog/event.h"
@@ -35,18 +37,24 @@ static const char sh_path[] = SH_PATH;
 static const char su_path[] = SU_PATH;
 static const char ksud_path[] = KSUD_PATH;
 
-bool ksu_su_compat_enabled __read_mostly = true;
+DEFINE_STATIC_KEY_TRUE(ksu_su_compat_enabled);
 
 static int su_compat_feature_get(u64 *value)
 {
-    *value = ksu_su_compat_enabled ? 1 : 0;
+    if (static_key_enabled(&ksu_su_compat_enabled))
+        *value = 1;
+    else
+        *value = 0;
     return 0;
 }
 
 static int su_compat_feature_set(u64 value)
 {
     bool enable = value != 0;
-    ksu_su_compat_enabled = enable;
+    if (enable)
+        static_branch_enable(&ksu_su_compat_enabled);
+    else
+        static_branch_disable(&ksu_su_compat_enabled);
     pr_info("su_compat: set to %d\n", enable);
     return 0;
 }
@@ -106,13 +114,13 @@ static const char __user *get_user_arg_ptr(struct user_arg_ptr argv, int nr)
  * return 0 -> No further checks should be required afterwards
  * return non-zero -> Further checks should be continued afterwards
  */
-int ksu_handle_execveat_init(struct filename *filename, struct user_arg_ptr *argv_user) {
+int ksu_handle_execveat_init(struct filename *filename, struct user_arg_ptr *argv_user, struct user_arg_ptr *envp_user) {
     if (current->pid != 1 && is_init(get_current_cred())) {
+        int ret;
         if (unlikely(strcmp(filename->name, KSUD_PATH) == 0)) {
             char tmp_filename[SUSFS_MAX_LEN_PATHNAME] = {0};
             const char __user *argv_user_ptr = get_user_arg_ptr(*argv_user, 0);
             struct ksu_sulog_pending_event *pending_sucompat = NULL;
-            int ret;
 
             pr_info("hook_manager: escape to root for init executing ksud: %d\n", current->pid);
             ret = escape_to_root_for_init();
@@ -136,14 +144,29 @@ int ksu_handle_execveat_init(struct filename *filename, struct user_arg_ptr *arg
             susfs_set_current_proc_umounted();
             return 0;
         }
-        return -EINVAL;
+
+#ifdef CONFIG_COMPAT
+        if (unlikely(envp_user->is_compat))
+            ret = ksu_adb_root_handle_execve(filename->name, (void ***)&envp_user->ptr.compat);
+        else
+            ret = ksu_adb_root_handle_execve(filename->name, (void ***)&envp_user->ptr.native);    
+#else
+        ret = ksu_adb_root_handle_execve(filename->name, (void ***)&envp_user->ptr.native);
+#endif
+
+        if (ret) {
+            pr_err("adb root failed: %d\n", ret);
+            return ret;
+        }
+        return ret;
     }
+
     return -EINVAL;
 }
 
 // the call from execve_handler_pre won't provided correct value for __never_use_argument, use them after fix execve_handler_pre, keeping them for consistence for manually patched code
 int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
-                 void *argv_user, void *__never_use_envp,
+                 void *argv_user, void *envp_user,
                  int *__never_use_flags)
 {
     struct filename *filename;
@@ -159,11 +182,17 @@ int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
     if (IS_ERR(filename))
         return 0;
 
-    if (!ksu_handle_execveat_init(filename, (struct user_arg_ptr*)argv_user))
+    if (!ksu_handle_execveat_init(filename, (struct user_arg_ptr*)argv_user, (struct user_arg_ptr*)envp_user))
         return 0;
 
     if (likely(memcmp(filename->name, su_path, sizeof(su_path))))
         return 0;
+
+    if (current_chrooted())
+    {
+        pr_err("ksu_handle_execveat_sucompat: su found but NOT allowed! Because current process is running in chrooted environment\n");
+        return 0;
+    }
 
     pr_info("ksu_handle_execveat_sucompat: su found\n");
 
@@ -202,6 +231,11 @@ int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
     strncpy_from_user(path, *filename_user, sizeof(path));
 
     if (unlikely(!memcmp(path, su_path, sizeof(su_path)))) {
+        if (current_chrooted())
+        {
+            pr_err("ksu_handle_faccessat: su found but NOT allowed! Because current process is running in chrooted environment\n");
+            return 0;
+        }
         pr_info("ksu_handle_faccessat: su->sh!\n");
         *filename_user = sh_user_path();
     }
@@ -217,6 +251,11 @@ int ksu_handle_stat(int *dfd, struct filename **filename, int *flags) {
     if (likely(memcmp((*filename)->name, su_path, sizeof(su_path))))
         return 0;
 
+    if (current_chrooted())
+    {
+        pr_err("ksu_handle_stat: su found but NOT allowed! Because current process is running in chrooted environment\n");
+        return 0;
+    }
     pr_info("ksu_handle_stat: su->sh!\n");
     memcpy((void *)((*filename)->name), sh_path, sizeof(sh_path));
     return 0;
@@ -232,6 +271,11 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
     strncpy_from_user(path, *filename_user, sizeof(path));
 
     if (unlikely(!memcmp(path, su_path, sizeof(su_path)))) {
+        if (current_chrooted())
+        {
+            pr_err("ksu_handle_stat: su found but NOT allowed! Because current process is running in chrooted environment\n");
+            return 0;
+        }
         pr_info("ksu_handle_stat: su->sh!\n");
         *filename_user = sh_user_path();
     }
@@ -239,28 +283,6 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
     return 0;
 }
 #endif // #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-
-int ksu_handle_devpts(struct inode *inode)
-{
-    if (!current->mm)
-        return 0;
-
-    uid_t uid = current_uid().val;
-    if (uid % 100000 < 10000)
-        // not untrusted_app, ignore it
-        return 0;
-
-    if (!__ksu_is_allow_uid_for_current(uid))
-        return 0;
-
-    if (ksu_file_sid) {
-        struct inode_security_struct *sec = selinux_inode(inode);
-        if (sec)
-            sec->sid = ksu_file_sid;
-    }
-
-    return 0;
-}
 
 // sucompat: permitted process can execute 'su' to gain root access.
 void __init ksu_sucompat_init()

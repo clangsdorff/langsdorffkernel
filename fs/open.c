@@ -403,7 +403,7 @@ static const struct cred *access_override_creds(void)
 }
 
 #ifdef CONFIG_KSU_SUSFS
-extern bool ksu_su_compat_enabled __read_mostly;
+extern struct static_key_true ksu_su_compat_enabled;
 extern bool __ksu_is_allow_uid_for_current(uid_t uid);
 extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
 			int *flags);
@@ -418,12 +418,12 @@ long do_faccessat(int dfd, const char __user *filename, int mode, int flags)
 	const struct cred *old_cred = NULL;
 
 #ifdef CONFIG_KSU_SUSFS
-	if (likely(susfs_is_current_proc_umounted()) || !ksu_su_compat_enabled) {
+	if (likely(susfs_is_current_proc_umounted()))
 		goto orig_flow;
-	}
 
-	if (unlikely(__ksu_is_allow_uid_for_current(current_uid().val))) {
-		ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
+	if (static_branch_likely(&ksu_su_compat_enabled)) {
+		if (unlikely(__ksu_is_allow_uid_for_current(current_uid().val)))
+			ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
 	}
 
 orig_flow:
@@ -1253,13 +1253,6 @@ retry:
 	if (fd >= 0) {
 		struct file *f = do_filp_open(dfd, tmp, &op);
 
-#ifdef CONFIG_SECURITY_DEFEX
-		if (!IS_ERR(f) && task_defex_enforce(current, f, -__NR_openat)) {
-			fput(f);
-			f = ERR_PTR(-EPERM);
-		}
-#endif
-
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 		if (!is_inode_open_redirect && f && !IS_ERR(f)) {
 			struct inode *inode = file_inode(f);
@@ -1276,6 +1269,13 @@ retry:
 		}
 #endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 
+
+#ifdef CONFIG_SECURITY_DEFEX
+		if (!IS_ERR(f) && task_defex_enforce(current, f, -__NR_openat)) {
+			fput(f);
+			f = ERR_PTR(-EPERM);
+		}
+#endif
 		if (IS_ERR(f)) {
 			put_unused_fd(fd);
 			fd = PTR_ERR(f);

@@ -2,6 +2,7 @@ package me.weishu.kernelsu.ui.screen.sulog
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +29,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -38,59 +40,64 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeSource
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.component.ListPopupDefaults
+import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.SearchStatus
+import me.weishu.kernelsu.ui.component.miuix.SearchBarFake
 import me.weishu.kernelsu.ui.component.miuix.SearchBox
 import me.weishu.kernelsu.ui.component.miuix.SearchPager
 import me.weishu.kernelsu.ui.component.miuix.WarningCard
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
+import me.weishu.kernelsu.ui.util.BlurredBar
 import me.weishu.kernelsu.ui.util.SulogEntry
 import me.weishu.kernelsu.ui.util.SulogEventFilter
+import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownImpl
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
-import top.yukonga.miuix.kmp.basic.ListPopupDefaults
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberPullToRefreshState
-import top.yukonga.miuix.kmp.extra.SuperDialog
-import top.yukonga.miuix.kmp.extra.SuperDropdown
-import top.yukonga.miuix.kmp.extra.SuperListPopup
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.Filter
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.overlay.OverlayListPopup
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.isDynamicColor
 import top.yukonga.miuix.kmp.utils.overScrollVertical
@@ -102,20 +109,16 @@ fun SulogScreenMiuix(
     actions: SulogActions,
 ) {
     val enableBlur = LocalEnableBlur.current
+    val density = LocalDensity.current
     val scrollBehavior = MiuixScrollBehavior()
     val dynamicTopPadding by remember {
         derivedStateOf { 12.dp * (1f - scrollBehavior.state.collapsedFraction) }
     }
-    val hazeState = remember { HazeState() }
-    val hazeStyle = if (enableBlur) {
-        HazeStyle(
-            backgroundColor = colorScheme.surface,
-            tint = HazeTint(colorScheme.surface.copy(0.8f)),
-        )
-    } else {
-        HazeStyle.Unspecified
-    }
+    val backdrop = rememberBlurBackdrop(enableBlur)
+    val blurActive = backdrop != null
+    val barColor = if (blurActive) Color.Transparent else colorScheme.surface
     val pullToRefreshState = rememberPullToRefreshState()
+    val listState = rememberLazyListState()
     val fileSelector = buildSulogFileSelector(state.files, state.selectedFilePath)
     val refreshTexts = listOf(
         stringResource(R.string.refresh_pulling),
@@ -148,73 +151,103 @@ fun SulogScreenMiuix(
 
     Scaffold(
         topBar = {
-            searchStatus.TopAppBarAnim(hazeState = hazeState, hazeStyle = hazeStyle) {
-                TopAppBar(
-                    color = if (enableBlur) Color.Transparent else colorScheme.surface,
-                    title = stringResource(R.string.settings_sulog),
-                    navigationIcon = {
-                        IconButton(
-                            modifier = Modifier.padding(start = 16.dp),
-                            onClick = actions.onBack,
-                        ) {
-                            val layoutDirection = LocalLayoutDirection.current
-                            Icon(
-                                modifier = Modifier.graphicsLayer {
-                                    if (layoutDirection == LayoutDirection.Rtl) scaleX = -1f
-                                },
-                                imageVector = MiuixIcons.Back,
-                                contentDescription = null,
-                                tint = colorScheme.onSurface,
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(
-                            modifier = Modifier.padding(end = 8.dp),
-                            onClick = actions.onCleanFile,
-                        ) {
-                            Icon(
-                                imageVector = MiuixIcons.Delete,
-                                tint = colorScheme.onSurface,
-                                contentDescription = stringResource(R.string.sulog_clean_title),
-                            )
-                        }
+            BlurredBar(backdrop) {
+                searchStatus.TopAppBarAnim(backgroundColor = barColor) {
+                    TopAppBar(
+                        color = barColor,
+                        title = stringResource(R.string.settings_sulog),
+                        navigationIcon = {
+                            IconButton(
+                                onClick = actions.onBack,
+                            ) {
+                                val layoutDirection = LocalLayoutDirection.current
+                                Icon(
+                                    modifier = Modifier.graphicsLayer {
+                                        if (layoutDirection == LayoutDirection.Rtl) scaleX = -1f
+                                    },
+                                    imageVector = MiuixIcons.Back,
+                                    contentDescription = null,
+                                    tint = colorScheme.onSurface,
+                                )
+                            }
+                        },
+                        actions = {
+                            IconButton(
+                                modifier = Modifier.padding(end = 8.dp),
+                                onClick = actions.onCleanFile,
+                            ) {
+                                Icon(
+                                    imageVector = MiuixIcons.Delete,
+                                    tint = colorScheme.onSurface,
+                                    contentDescription = stringResource(R.string.sulog_clean_title),
+                                )
+                            }
 
-                        val showFilterPopup = remember { mutableStateOf(false) }
-                        SuperListPopup(
-                            show = showFilterPopup.value,
-                            popupPositionProvider = ListPopupDefaults.ContextMenuPositionProvider,
-                            onDismissRequest = { showFilterPopup.value = false },
-                            content = {
-                                ListPopupColumn {
-                                    SulogEventFilter.entries.forEachIndexed { index, filter ->
-                                        DropdownImpl(
-                                            text = sulogFilterLabel(filter),
-                                            isSelected = filter in state.selectedFilters,
-                                            optionSize = SulogEventFilter.entries.size,
-                                            onSelectedIndexChange = {
-                                                actions.onToggleFilter(filter)
-                                            },
-                                            index = index,
-                                        )
-                                    }
+                            Box {
+                                val showFilterPopup = remember { mutableStateOf(false) }
+                                OverlayListPopup(
+                                    show = showFilterPopup.value,
+                                    popupPositionProvider = ListPopupDefaults.MenuPositionProvider,
+                                    alignment = PopupPositionProvider.Align.TopEnd,
+                                    onDismissRequest = {
+                                        showFilterPopup.value = false
+                                    },
+                                    content = {
+                                        ListPopupColumn {
+                                            SulogEventFilter.entries.forEachIndexed { index, filter ->
+                                                DropdownImpl(
+                                                    text = sulogFilterLabel(filter),
+                                                    isSelected = filter in state.selectedFilters,
+                                                    optionSize = SulogEventFilter.entries.size,
+                                                    onSelectedIndexChange = {
+                                                        actions.onToggleFilter(filter)
+                                                    },
+                                                    index = index,
+                                                )
+                                            }
+                                        }
+                                    },
+                                )
+                                IconButton(
+                                    onClick = { showFilterPopup.value = true },
+                                    holdDownState = showFilterPopup.value,
+                                ) {
+                                    Icon(
+                                        imageVector = MiuixIcons.Filter,
+                                        tint = colorScheme.onSurface,
+                                        contentDescription = stringResource(R.string.sulog_filter_title),
+                                    )
                                 }
-                            },
-                        )
-                        IconButton(
-                            modifier = Modifier.padding(end = 16.dp),
-                            onClick = { showFilterPopup.value = true },
-                            holdDownState = showFilterPopup.value,
-                        ) {
-                            Icon(
-                                imageVector = MiuixIcons.Filter,
-                                tint = colorScheme.onSurface,
-                                contentDescription = stringResource(R.string.sulog_filter_title),
-                            )
+                            }
+                        },
+                        scrollBehavior = scrollBehavior,
+                        bottomContent = {
+                            Box(
+                                modifier = Modifier
+                                    .alpha(if (searchStatus.isCollapsed()) 1f else 0f)
+                                    .onGloballyPositioned { coordinates ->
+                                        with(density) {
+                                            val newOffsetY = coordinates.positionInWindow().y.toDp()
+                                            if (searchStatus.offsetY != newOffsetY) {
+                                                onSearchStatusChange(searchStatus.copy(offsetY = newOffsetY))
+                                            }
+                                        }
+                                    }
+                                    .then(
+                                        if (searchStatus.isCollapsed()) {
+                                            Modifier.pointerInput(Unit) {
+                                                detectTapGestures {
+                                                    onSearchStatusChange(searchStatus.copy(current = SearchStatus.Status.EXPANDING))
+                                                }
+                                            }
+                                        } else Modifier,
+                                    ),
+                            ) {
+                                SearchBarFake(searchStatus.label, dynamicTopPadding)
+                            }
                         }
-                    },
-                    scrollBehavior = scrollBehavior,
-                )
+                    )
+                }
             }
         },
         popupHost = {
@@ -246,80 +279,79 @@ fun SulogScreenMiuix(
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
         val layoutDirection = LocalLayoutDirection.current
-        searchStatus.SearchBox(
-            onSearchStatusChange = ::onSearchStatusChange,
-            searchBarTopPadding = dynamicTopPadding,
-            contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding(),
-                start = innerPadding.calculateStartPadding(layoutDirection),
-                end = innerPadding.calculateEndPadding(layoutDirection),
-            ),
-            hazeState = hazeState,
-            hazeStyle = hazeStyle,
-        ) { boxHeight ->
+        searchStatus.SearchBox {
             PullToRefresh(
                 isRefreshing = state.isLoading || state.isRefreshing,
                 pullToRefreshState = pullToRefreshState,
                 onRefresh = actions.onRefresh,
                 refreshTexts = refreshTexts,
                 contentPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding() + boxHeight.value + 6.dp,
+                    top = innerPadding.calculateTopPadding() + 6.dp,
                     start = innerPadding.calculateStartPadding(layoutDirection),
                     end = innerPadding.calculateEndPadding(layoutDirection),
                 ),
             ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .scrollEndHaptic()
-                        .overScrollVertical()
-                        .nestedScroll(scrollBehavior.nestedScrollConnection)
-                        .let { if (enableBlur) it.hazeSource(state = hazeState) else it },
-                    contentPadding = PaddingValues(
-                        top = innerPadding.calculateTopPadding() + boxHeight.value + 6.dp,
-                        start = innerPadding.calculateStartPadding(layoutDirection),
-                        end = innerPadding.calculateEndPadding(layoutDirection),
-                    ),
-                    overscrollEffect = null,
-                ) {
-                    item {
-                        SulogStatusSection(state, actions)
-                    }
+                val latestVisibleEntries = rememberUpdatedState(state.visibleEntries)
+                ScrollToTopOnChange(
+                    listState,
+                    state.searchText,
+                    state.selectedFilters,
+                    state.selectedFilePath,
+                ) { latestVisibleEntries.value }
+                Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .scrollEndHaptic()
+                            .overScrollVertical()
+                            .nestedScroll(scrollBehavior.nestedScrollConnection),
+                        contentPadding = PaddingValues(
+                            top = innerPadding.calculateTopPadding() + 6.dp,
+                            start = innerPadding.calculateStartPadding(layoutDirection),
+                            end = innerPadding.calculateEndPadding(layoutDirection),
+                        ),
+                        overscrollEffect = null,
+                    ) {
+                        item {
+                            SulogStatusSection(state, actions)
+                        }
 
-                    item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp)
-                                .padding(bottom = 12.dp),
-                        ) {
-                            SuperDropdown(
-                                title = stringResource(R.string.sulog_log_files),
-                                items = fileSelector.items,
-                                enabled = fileSelector.items.isNotEmpty(),
-                                selectedIndex = fileSelector.selectedIndex,
-                                onSelectedIndexChange = { index ->
-                                    state.files.getOrNull(index)?.let { file ->
-                                        actions.onSelectFile(file.path)
-                                    }
-                                },
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp)
+                                    .padding(bottom = 12.dp),
+                            ) {
+                                OverlayDropdownPreference(
+                                    title = stringResource(R.string.sulog_log_files),
+                                    items = fileSelector.items,
+                                    enabled = fileSelector.items.isNotEmpty(),
+                                    selectedIndex = fileSelector.selectedIndex,
+                                    onSelectedIndexChange = { index ->
+                                        state.files.getOrNull(index)?.let { file ->
+                                            actions.onSelectFile(file.path)
+                                        }
+                                    },
+                                )
+                            }
+                        }
+
+                        sulogEntriesSection(
+                            entries = state.visibleEntries,
+                            errorMessage = state.errorMessage,
+                            onEntryClick = { selectedEntry = it },
+                        )
+
+                        item {
+                            Spacer(
+                                Modifier.height(
+                                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+                                            WindowInsets.captionBar.asPaddingValues().calculateBottomPadding()
+                                )
                             )
                         }
-                    }
-
-                    sulogEntriesSection(
-                        entries = state.visibleEntries,
-                        errorMessage = state.errorMessage,
-                        onEntryClick = { selectedEntry = it },
-                    )
-
-                    item {
-                        Spacer(
-                            Modifier.height(
-                                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
-                                        WindowInsets.captionBar.asPaddingValues().calculateBottomPadding()
-                            )
-                        )
                     }
                 }
             }
@@ -385,7 +417,7 @@ private fun LazyListScope.sulogEntriesSection(
             )
         }
 
-        else -> items(entries, key = { it.key }) { entry ->
+        else -> itemsIndexed(entries, key = { index, entry -> "$index-${entry.key}" }) { index, entry ->
             SulogEntryCard(
                 entry = entry,
                 onClick = { onEntryClick(entry) },
@@ -450,13 +482,13 @@ private fun SulogEntryCard(
                         colorScheme.secondaryContainer to colorScheme.onSecondaryContainer,
                         colorScheme.tertiaryContainer to colorScheme.onTertiaryContainer,
                     )
-                    entry.summaryTags.forEachIndexed { index, tag ->
+                    sulogEntrySummaryTags(entry).forEachIndexed { index, tag ->
                         val (bg, fg) = colors.getOrElse(index) { colors.last() }
                         StatusTag(label = tag, backgroundColor = bg, contentColor = fg)
                     }
                 }
             }
-            entry.status?.let {
+            sulogEntryStatus(entry)?.let {
                 Text(
                     text = it,
                     color = colorScheme.onSurfaceVariantActions,
@@ -521,7 +553,7 @@ private fun SulogDetailDialog(
     var lastEntry by remember { mutableStateOf(entry) }
     if (entry != null) lastEntry = entry
     val displayEntry = lastEntry ?: return
-    SuperDialog(
+    OverlayDialog(
         show = show,
         title = sulogEntryTitle(displayEntry),
         onDismissRequest = onDismiss,
@@ -533,7 +565,7 @@ private fun SulogDetailDialog(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     Text(
-                        text = formatDetailText(displayEntry.detailText),
+                        text = sulogEntryDetailText(displayEntry),
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
                     )
@@ -548,19 +580,4 @@ private fun SulogDetailDialog(
             }
         },
     )
-}
-
-private fun formatDetailText(text: String) = buildAnnotatedString {
-    text.lineSequence().forEachIndexed { index, line ->
-        if (index > 0) append('\n')
-        val colonIndex = line.indexOf(": ")
-        if (colonIndex >= 0) {
-            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                append(line, 0, colonIndex + 2)
-            }
-            append(line, colonIndex + 2, line.length)
-        } else {
-            append(line)
-        }
-    }
 }
