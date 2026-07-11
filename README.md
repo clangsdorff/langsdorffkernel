@@ -6,6 +6,7 @@
 - LZ4 compressed ZRAM.
 - Official KernelSU with SUSFS.
 - Dex touchpad support for OneUI ROMs.
+- Removed firmware checks from check_connection in novatek touchscreen driver to fix 2 seconds delay for RestlessOS treble patchset based GSI's
 - Built-in hook for the `${fps_position}` bug in flagship FOD ports.
 - Updated `sdfat` driver to v2.8.1 (from a33x).
 - AVB and some security checks disabled.
