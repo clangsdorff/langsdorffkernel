@@ -21,6 +21,7 @@
 #include <mali_kbase.h>
 #include <gpexbe_utilization.h>
 #include <gpex_gts.h>
+#include <gpex_dvfs.h>
 
 /* Mali pm metrics uses 256ns as a unit */
 #define KBASE_PM_TIME_SHIFT 8
@@ -101,9 +102,11 @@ void gpexbe_utilization_update_job_load(struct kbase_jd_atom *katom, ktime_t *en
 	} else if (is_fragment_job(katom)) {
 		update_fragment_job_load(ns_spent);
 		increment_fragment_job_cnt();
+		gpex_dvfs_notify_render_job(ns_spent);
 	} else if (is_compute_job(katom)) {
 		update_vertex_job_load(ns_spent);
 		increment_vertex_job_cnt();
+		gpex_dvfs_notify_render_job(ns_spent);
 	}
 }
 

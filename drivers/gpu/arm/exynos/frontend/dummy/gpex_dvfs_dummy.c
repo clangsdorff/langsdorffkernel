@@ -37,6 +37,11 @@ int gpex_dvfs_set_clock_callback(void)
 	return 0;
 }
 
+void gpex_dvfs_notify_render_job(u64 ns_spent)
+{
+	return;
+}
+
 int gpex_dvfs_enable(void)
 {
 	return 0;

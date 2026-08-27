@@ -115,6 +115,10 @@ typedef struct _dt_info {
 	const char *governor;
 	u32 gpu_dvfs_bl_config_clock;
 	u32 gpu_dvfs_polling_time;
+	/* Clock floor applied while fragment jobs are overrunning the frame
+	 * budget. Optional; falls back to interactive_info.highspeed_clock.
+	 */
+	u32 gpu_frame_boost_clock;
 
 	/* QOS */
 	u32 gpu_bts_support;

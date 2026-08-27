@@ -126,21 +126,45 @@ static ssize_t show_governor(char *buf)
 }
 CREATE_SYSFS_DEVICE_READ_FUNCTION(show_governor);
 
+/* Accepts either a governor name or its table index.
+ *
+ * Returns: governor type on success, -EINVAL on unparsable or out of range
+ * input. Never falls back to a default: the previous version left the parsed
+ * value untouched when kstrtoint() failed, so writing a governor name silently
+ * switched the GPU to whatever index happened to be on the stack (in practice
+ * 0, Default) while still reporting success.
+ */
+static int gpu_dvfs_governor_parse(const char *buf)
+{
+	gpu_dvfs_governor_info *governor_info;
+	int governor_type;
+	int i;
+
+	governor_info = (gpu_dvfs_governor_info *)gpu_dvfs_get_governor_info();
+
+	for (i = 0; i < G3D_MAX_GOVERNOR_NUM; i++)
+		if (sysfs_streq(buf, governor_info[i].name))
+			return i;
+
+	if (kstrtoint(buf, 0, &governor_type))
+		return -EINVAL;
+
+	if ((governor_type < 0) || (governor_type >= G3D_MAX_GOVERNOR_NUM))
+		return -EINVAL;
+
+	return governor_type;
+}
+
 static ssize_t set_governor(const char *buf, size_t count)
 {
-	int ret;
-	int next_governor_type;
+	int next_governor_type = gpu_dvfs_governor_parse(buf);
 
-	ret = kstrtoint(buf, 0, &next_governor_type);
-
-	if ((next_governor_type < 0) || (next_governor_type >= G3D_MAX_GOVERNOR_NUM)) {
-		GPU_LOG(MALI_EXYNOS_WARNING, "%s: invalid value\n", __func__);
-		return -ENOENT;
+	if (next_governor_type < 0) {
+		GPU_LOG(MALI_EXYNOS_WARNING, "%s: invalid governor\n", __func__);
+		return -EINVAL;
 	}
 
-	ret = gpu_dvfs_governor_change(next_governor_type);
-
-	if (ret < 0) {
+	if (gpu_dvfs_governor_change(next_governor_type) < 0) {
 		GPU_LOG(MALI_EXYNOS_WARNING, "%s: fail to set the new governor (%d)\n", __func__,
 			next_governor_type);
 		return -ENOENT;
@@ -150,6 +174,8 @@ static ssize_t set_governor(const char *buf, size_t count)
 }
 CREATE_SYSFS_DEVICE_WRITE_FUNCTION(set_governor);
 
+#define MIN_DOWN_STAYCOUNT 1
+#define MAX_DOWN_STAYCOUNT 10
 static ssize_t show_down_staycount(char *buf)
 {
 	ssize_t ret = 0;
@@ -163,6 +189,12 @@ static ssize_t show_down_staycount(char *buf)
 				dvfs->table[i].down_staycount);
 	spin_unlock_irqrestore(&dvfs->spinlock, flags);
 
+	/* The write format is per level and does not match the lines above, which
+	 * is why a bare "echo 3" is rejected. Spell it out here.
+	 */
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "write format: <clock> <staycount %d-%d>\n",
+			MIN_DOWN_STAYCOUNT, MAX_DOWN_STAYCOUNT);
+
 	if (ret < PAGE_SIZE - 1) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
 	} else {
@@ -175,8 +207,6 @@ static ssize_t show_down_staycount(char *buf)
 }
 CREATE_SYSFS_DEVICE_READ_FUNCTION(show_down_staycount);
 
-#define MIN_DOWN_STAYCOUNT 1
-#define MAX_DOWN_STAYCOUNT 10
 static ssize_t set_down_staycount(const char *buf, size_t count)
 {
 	unsigned long flags;
@@ -510,30 +540,14 @@ CREATE_SYSFS_KOBJECT_READ_FUNCTION(show_kernel_sysfs_governor)
 
 static ssize_t set_kernel_sysfs_governor(const char *buf, size_t count)
 {
-	int ret;
-	int i = 0;
-	int next_governor_type = -1;
-	size_t governor_name_size = 0;
-	gpu_dvfs_governor_info *governor_info = NULL;
+	int next_governor_type = gpu_dvfs_governor_parse(buf);
 
-	governor_info = (gpu_dvfs_governor_info *)gpu_dvfs_get_governor_info();
-
-	for (i = 0; i < G3D_MAX_GOVERNOR_NUM; i++) {
-		governor_name_size = strlen(governor_info[i].name);
-		if (!strncmp(buf, governor_info[i].name, governor_name_size)) {
-			next_governor_type = i;
-			break;
-		}
+	if (next_governor_type < 0) {
+		GPU_LOG(MALI_EXYNOS_ERROR, "%s: invalid governor\n", __func__);
+		return -EINVAL;
 	}
 
-	if ((next_governor_type < 0) || (next_governor_type >= G3D_MAX_GOVERNOR_NUM)) {
-		GPU_LOG(MALI_EXYNOS_ERROR, "%s: invalid value\n", __func__);
-		return -ENOENT;
-	}
-
-	ret = gpu_dvfs_governor_change(next_governor_type);
-
-	if (ret < 0) {
+	if (gpu_dvfs_governor_change(next_governor_type) < 0) {
 		GPU_LOG(MALI_EXYNOS_ERROR, "%s: fail to set the new governor (%d)\n", __func__,
 			next_governor_type);
 		return -ENOENT;
@@ -542,6 +556,139 @@ static ssize_t set_kernel_sysfs_governor(const char *buf, size_t count)
 	return count;
 }
 CREATE_SYSFS_KOBJECT_WRITE_FUNCTION(set_kernel_sysfs_governor)
+
+/* Deadline driven boost knobs. gpu_frame_boost_clock = 0 turns the whole thing
+ * off and restores plain utilization based governing.
+ */
+static ssize_t show_kernel_sysfs_frame_boost_clock(char *buf)
+{
+	ssize_t len = 0;
+
+	len += snprintf(buf + len, PAGE_SIZE - len, "%d", dvfs->frame_boost.clock);
+
+	return gpex_utils_sysfs_endbuf(buf, len);
+}
+CREATE_SYSFS_KOBJECT_READ_FUNCTION(show_kernel_sysfs_frame_boost_clock)
+
+static ssize_t set_kernel_sysfs_frame_boost_clock(const char *buf, size_t count)
+{
+	unsigned long flags;
+	int clock = 0;
+	int level;
+
+	if (kstrtoint(buf, 0, &clock)) {
+		GPU_LOG(MALI_EXYNOS_WARNING, "%s: invalid value\n", __func__);
+		return -EINVAL;
+	}
+
+	if (clock < 0)
+		return -EINVAL;
+
+	if (clock > 0) {
+		level = gpex_clock_get_table_idx(clock);
+		if ((level < gpex_clock_get_table_idx(gpex_clock_get_max_clock())) ||
+		    (level > gpex_clock_get_table_idx(gpex_clock_get_min_clock()))) {
+			GPU_LOG(MALI_EXYNOS_WARNING, "%s: invalid clock value (%d)\n", __func__,
+				clock);
+			return -EINVAL;
+		}
+	}
+
+	spin_lock_irqsave(&dvfs->spinlock, flags);
+	dvfs->frame_boost.clock = clock;
+	spin_unlock_irqrestore(&dvfs->spinlock, flags);
+
+	return count;
+}
+CREATE_SYSFS_KOBJECT_WRITE_FUNCTION(set_kernel_sysfs_frame_boost_clock)
+
+static ssize_t show_kernel_sysfs_frame_boost_job_us(char *buf)
+{
+	ssize_t len = 0;
+
+	len += snprintf(buf + len, PAGE_SIZE - len, "%d", dvfs->frame_boost.job_us);
+
+	return gpex_utils_sysfs_endbuf(buf, len);
+}
+CREATE_SYSFS_KOBJECT_READ_FUNCTION(show_kernel_sysfs_frame_boost_job_us)
+
+static ssize_t set_kernel_sysfs_frame_boost_job_us(const char *buf, size_t count)
+{
+	unsigned long flags;
+	int job_us = 0;
+
+	if (kstrtoint(buf, 0, &job_us)) {
+		GPU_LOG(MALI_EXYNOS_WARNING, "%s: invalid value\n", __func__);
+		return -EINVAL;
+	}
+
+	if ((job_us <= 0) || (job_us > GPEX_DVFS_FRAME_BOOST_MAX_JOB_US)) {
+		GPU_LOG(MALI_EXYNOS_WARNING, "%s: out of range [1~%d] (%d)\n", __func__,
+			GPEX_DVFS_FRAME_BOOST_MAX_JOB_US, job_us);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&dvfs->spinlock, flags);
+	dvfs->frame_boost.job_us = job_us;
+	spin_unlock_irqrestore(&dvfs->spinlock, flags);
+
+	return count;
+}
+CREATE_SYSFS_KOBJECT_WRITE_FUNCTION(set_kernel_sysfs_frame_boost_job_us)
+
+static ssize_t show_kernel_sysfs_frame_boost_release_ms(char *buf)
+{
+	ssize_t len = 0;
+
+	len += snprintf(buf + len, PAGE_SIZE - len, "%d", dvfs->frame_boost.release_ms);
+
+	return gpex_utils_sysfs_endbuf(buf, len);
+}
+CREATE_SYSFS_KOBJECT_READ_FUNCTION(show_kernel_sysfs_frame_boost_release_ms)
+
+static ssize_t set_kernel_sysfs_frame_boost_release_ms(const char *buf, size_t count)
+{
+	unsigned long flags;
+	int release_ms = 0;
+
+	if (kstrtoint(buf, 0, &release_ms)) {
+		GPU_LOG(MALI_EXYNOS_WARNING, "%s: invalid value\n", __func__);
+		return -EINVAL;
+	}
+
+	if ((release_ms <= 0) || (release_ms > GPEX_DVFS_FRAME_BOOST_MAX_RELEASE_MS)) {
+		GPU_LOG(MALI_EXYNOS_WARNING, "%s: out of range [1~%d] (%d)\n", __func__,
+			GPEX_DVFS_FRAME_BOOST_MAX_RELEASE_MS, release_ms);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&dvfs->spinlock, flags);
+	dvfs->frame_boost.release_ms = release_ms;
+	spin_unlock_irqrestore(&dvfs->spinlock, flags);
+
+	return count;
+}
+CREATE_SYSFS_KOBJECT_WRITE_FUNCTION(set_kernel_sysfs_frame_boost_release_ms)
+
+static ssize_t show_kernel_sysfs_frame_boost_state(char *buf)
+{
+	ssize_t len = 0;
+	ktime_t last_late = (ktime_t)atomic64_read(&dvfs->frame_boost.last_late_job);
+	int active = 0;
+
+	if ((dvfs->frame_boost.clock > 0) && last_late &&
+	    (ktime_ms_delta(ktime_get_boottime(), last_late) <= dvfs->frame_boost.release_ms))
+		active = 1;
+
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"clock %d job_us %d release_ms %d active %d late_jobs %d",
+			dvfs->frame_boost.clock, dvfs->frame_boost.job_us,
+			dvfs->frame_boost.release_ms, active,
+			atomic_read(&dvfs->frame_boost.late_job_cnt));
+
+	return gpex_utils_sysfs_endbuf(buf, len);
+}
+CREATE_SYSFS_KOBJECT_READ_FUNCTION(show_kernel_sysfs_frame_boost_state)
 
 int gpex_dvfs_sysfs_init(struct dvfs_info *_dvfs)
 {
@@ -564,6 +711,18 @@ int gpex_dvfs_sysfs_init(struct dvfs_info *_dvfs)
 	GPEX_UTILS_SYSFS_KOBJECT_FILE_ADD_RO(gpu_available_governor,
 					     show_kernel_sysfs_available_governor);
 	GPEX_UTILS_SYSFS_KOBJECT_FILE_ADD_RO(gpu_busy, show_kernel_sysfs_utilization);
+
+	GPEX_UTILS_SYSFS_KOBJECT_FILE_ADD(gpu_frame_boost_clock,
+					  show_kernel_sysfs_frame_boost_clock,
+					  set_kernel_sysfs_frame_boost_clock);
+	GPEX_UTILS_SYSFS_KOBJECT_FILE_ADD(gpu_frame_boost_job_us,
+					  show_kernel_sysfs_frame_boost_job_us,
+					  set_kernel_sysfs_frame_boost_job_us);
+	GPEX_UTILS_SYSFS_KOBJECT_FILE_ADD(gpu_frame_boost_release_ms,
+					  show_kernel_sysfs_frame_boost_release_ms,
+					  set_kernel_sysfs_frame_boost_release_ms);
+	GPEX_UTILS_SYSFS_KOBJECT_FILE_ADD_RO(gpu_frame_boost_state,
+					     show_kernel_sysfs_frame_boost_state);
 
 	return 0;
 }

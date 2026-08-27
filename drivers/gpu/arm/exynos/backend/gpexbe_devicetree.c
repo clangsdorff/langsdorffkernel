@@ -243,6 +243,10 @@ static void read_from_dt(void)
 	gpexbe_devicetree_read_string("governor", &dt_info.governor);
 	gpexbe_devicetree_read_u32("gpu_dvfs_bl_config_clock", &dt_info.gpu_dvfs_bl_config_clock);
 	gpexbe_devicetree_read_u32("gpu_dvfs_polling_time", &dt_info.gpu_dvfs_polling_time);
+	/* Optional. read_u32() zeroes it when absent, which gpex_dvfs treats as
+	 * "fall back to the highspeed clock".
+	 */
+	gpexbe_devicetree_read_u32("gpu_frame_boost_clock", &dt_info.gpu_frame_boost_clock);
 
 	/* IFPO */
 	gpexbe_devicetree_read_u32("gpu_inter_frame_pm", &dt_info.gpu_inter_frame_pm);
