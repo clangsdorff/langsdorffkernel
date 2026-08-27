@@ -66,6 +66,32 @@ int gpex_dvfs_set_clock_callback(void);
  */
 void gpex_dvfs_notify_render_job(u64 ns_spent);
 
+/**
+ * gpex_dvfs_notify_atom_start() - an atom has been written to a job slot
+ *
+ * Context: called with hwaccess_lock held and interrupts disabled.
+ */
+void gpex_dvfs_notify_atom_start(void);
+
+/**
+ * gpex_dvfs_notify_atom_end() - an atom has completed
+ *
+ * Context: called with hwaccess_lock held and interrupts disabled.
+ */
+void gpex_dvfs_notify_atom_end(void);
+
+/**
+ * gpex_dvfs_notify_frame_end() - the frame's out fence has been signalled
+ *
+ * Compares the GPU busy time accumulated since the previous frame against
+ * frame_us and arms the boost when the frame's own work did not fit. Unlike the
+ * per job path this sees the whole frame, so it measures the quantity that
+ * actually has a deadline.
+ *
+ * Context: process context, no hwaccess_lock.
+ */
+void gpex_dvfs_notify_frame_end(void);
+
 /*******************
  * SETTERS
  ******************/

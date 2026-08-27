@@ -670,6 +670,41 @@ static ssize_t set_kernel_sysfs_frame_boost_release_ms(const char *buf, size_t c
 }
 CREATE_SYSFS_KOBJECT_WRITE_FUNCTION(set_kernel_sysfs_frame_boost_release_ms)
 
+static ssize_t show_kernel_sysfs_frame_boost_frame_us(char *buf)
+{
+	ssize_t len = 0;
+
+	len += snprintf(buf + len, PAGE_SIZE - len, "%d", dvfs->frame_boost.frame_us);
+
+	return gpex_utils_sysfs_endbuf(buf, len);
+}
+CREATE_SYSFS_KOBJECT_READ_FUNCTION(show_kernel_sysfs_frame_boost_frame_us)
+
+static ssize_t set_kernel_sysfs_frame_boost_frame_us(const char *buf, size_t count)
+{
+	unsigned long flags;
+	int frame_us = 0;
+
+	if (kstrtoint(buf, 0, &frame_us)) {
+		GPU_LOG(MALI_EXYNOS_WARNING, "%s: invalid value\n", __func__);
+		return -EINVAL;
+	}
+
+	/* 0 turns the per frame path off and leaves the per job one alone. */
+	if ((frame_us < 0) || (frame_us > GPEX_DVFS_FRAME_BOOST_MAX_FRAME_US)) {
+		GPU_LOG(MALI_EXYNOS_WARNING, "%s: out of range [0~%d] (%d)\n", __func__,
+			GPEX_DVFS_FRAME_BOOST_MAX_FRAME_US, frame_us);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&dvfs->spinlock, flags);
+	dvfs->frame_boost.frame_us = frame_us;
+	spin_unlock_irqrestore(&dvfs->spinlock, flags);
+
+	return count;
+}
+CREATE_SYSFS_KOBJECT_WRITE_FUNCTION(set_kernel_sysfs_frame_boost_frame_us)
+
 static ssize_t show_kernel_sysfs_frame_boost_state(char *buf)
 {
 	ssize_t len = 0;
@@ -681,10 +716,12 @@ static ssize_t show_kernel_sysfs_frame_boost_state(char *buf)
 		active = 1;
 
 	len += snprintf(buf + len, PAGE_SIZE - len,
-			"clock %d job_us %d release_ms %d active %d late_jobs %d",
+			"clock %d job_us %d frame_us %d release_ms %d active %d late_jobs %d late_frames %d last_frame_us %d",
 			dvfs->frame_boost.clock, dvfs->frame_boost.job_us,
-			dvfs->frame_boost.release_ms, active,
-			atomic_read(&dvfs->frame_boost.late_job_cnt));
+			dvfs->frame_boost.frame_us, dvfs->frame_boost.release_ms, active,
+			atomic_read(&dvfs->frame_boost.late_job_cnt),
+			atomic_read(&dvfs->frame_boost.late_frame_cnt),
+			dvfs->frame_boost.last_frame_us);
 
 	return gpex_utils_sysfs_endbuf(buf, len);
 }
@@ -718,6 +755,9 @@ int gpex_dvfs_sysfs_init(struct dvfs_info *_dvfs)
 	GPEX_UTILS_SYSFS_KOBJECT_FILE_ADD(gpu_frame_boost_job_us,
 					  show_kernel_sysfs_frame_boost_job_us,
 					  set_kernel_sysfs_frame_boost_job_us);
+	GPEX_UTILS_SYSFS_KOBJECT_FILE_ADD(gpu_frame_boost_frame_us,
+					  show_kernel_sysfs_frame_boost_frame_us,
+					  set_kernel_sysfs_frame_boost_frame_us);
 	GPEX_UTILS_SYSFS_KOBJECT_FILE_ADD(gpu_frame_boost_release_ms,
 					  show_kernel_sysfs_frame_boost_release_ms,
 					  set_kernel_sysfs_frame_boost_release_ms);

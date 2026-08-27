@@ -19,6 +19,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/math64.h>
 
 #include <gpex_dvfs.h>
 #include <gpex_utils.h>
@@ -94,9 +95,78 @@ static void gpex_dvfs_context_init(struct device **dev)
 	if (dvfs.frame_boost.clock <= 0)
 		dvfs.frame_boost.clock = gpexbe_devicetree_get_int(interactive_info.highspeed_clock);
 	dvfs.frame_boost.job_us = GPEX_DVFS_FRAME_BOOST_JOB_US;
+	/* Off by default: the per frame path measures a different quantity than
+	 * the per job one and its threshold has to be calibrated against the
+	 * panel's frame budget, so it is opt in through sysfs.
+	 */
+	dvfs.frame_boost.frame_us = GPEX_DVFS_FRAME_BOOST_FRAME_US;
 	dvfs.frame_boost.release_ms = GPEX_DVFS_FRAME_BOOST_RELEASE_MS;
 	atomic64_set(&dvfs.frame_boost.last_late_job, 0);
 	atomic_set(&dvfs.frame_boost.late_job_cnt, 0);
+
+	raw_spin_lock_init(&dvfs.frame_boost.busy_lock);
+	dvfs.frame_boost.nr_running = 0;
+	dvfs.frame_boost.busy_since = 0;
+	dvfs.frame_boost.frame_busy_ns = 0;
+	dvfs.frame_boost.last_frame_us = 0;
+	atomic_set(&dvfs.frame_boost.late_frame_cnt, 0);
+}
+
+void gpex_dvfs_notify_atom_start(void)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dvfs.frame_boost.busy_lock, flags);
+	if (dvfs.frame_boost.nr_running++ == 0)
+		dvfs.frame_boost.busy_since = ktime_get();
+	raw_spin_unlock_irqrestore(&dvfs.frame_boost.busy_lock, flags);
+}
+
+void gpex_dvfs_notify_atom_end(void)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dvfs.frame_boost.busy_lock, flags);
+	/* Atoms submitted before the counter was last reset complete without a
+	 * matching start, so never let it go negative.
+	 */
+	if (dvfs.frame_boost.nr_running > 0 && --dvfs.frame_boost.nr_running == 0 &&
+	    dvfs.frame_boost.busy_since) {
+		dvfs.frame_boost.frame_busy_ns +=
+			ktime_to_ns(ktime_sub(ktime_get(), dvfs.frame_boost.busy_since));
+		dvfs.frame_boost.busy_since = 0;
+	}
+	raw_spin_unlock_irqrestore(&dvfs.frame_boost.busy_lock, flags);
+}
+
+void gpex_dvfs_notify_frame_end(void)
+{
+	unsigned long flags;
+	u64 busy_ns;
+	ktime_t now = ktime_get();
+
+	raw_spin_lock_irqsave(&dvfs.frame_boost.busy_lock, flags);
+	/* An atom still running belongs to the frame being closed, so bank what
+	 * it has spent so far and restart its interval for the next frame.
+	 */
+	if (dvfs.frame_boost.nr_running > 0 && dvfs.frame_boost.busy_since) {
+		dvfs.frame_boost.frame_busy_ns +=
+			ktime_to_ns(ktime_sub(now, dvfs.frame_boost.busy_since));
+		dvfs.frame_boost.busy_since = now;
+	}
+	busy_ns = dvfs.frame_boost.frame_busy_ns;
+	dvfs.frame_boost.frame_busy_ns = 0;
+	dvfs.frame_boost.last_frame_us = (int)div_u64(busy_ns, NSEC_PER_USEC);
+	raw_spin_unlock_irqrestore(&dvfs.frame_boost.busy_lock, flags);
+
+	if (dvfs.frame_boost.clock <= 0 || dvfs.frame_boost.frame_us <= 0)
+		return;
+
+	if (busy_ns < (u64)dvfs.frame_boost.frame_us * NSEC_PER_USEC)
+		return;
+
+	atomic64_set(&dvfs.frame_boost.last_late_job, ktime_get_boottime());
+	atomic_inc(&dvfs.frame_boost.late_frame_cnt);
 }
 
 void gpex_dvfs_notify_render_job(u64 ns_spent)
@@ -209,6 +279,8 @@ void gpex_dvfs_start()
 
 void gpex_dvfs_stop()
 {
+	unsigned long flags;
+
 	gpu_dvfs_timer_control(false);
 
 	/* The GPU is about to be gated. Whatever job was running late belongs to
@@ -216,6 +288,12 @@ void gpex_dvfs_stop()
 	 * into the next wake-up and boost the first poll after resume.
 	 */
 	atomic64_set(&dvfs.frame_boost.last_late_job, 0);
+
+	raw_spin_lock_irqsave(&dvfs.frame_boost.busy_lock, flags);
+	dvfs.frame_boost.nr_running = 0;
+	dvfs.frame_boost.busy_since = 0;
+	dvfs.frame_boost.frame_busy_ns = 0;
+	raw_spin_unlock_irqrestore(&dvfs.frame_boost.busy_lock, flags);
 }
 /* TODO */
 /* MIN_POLLING_SPEED is dependant to Operating System(kernel timer, HZ) */
