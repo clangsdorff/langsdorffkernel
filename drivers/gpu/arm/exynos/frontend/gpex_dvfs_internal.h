@@ -22,6 +22,7 @@
 #define _GPEX_DVFS_INTERNAL_H_
 
 #include <linux/atomic.h>
+#include <linux/spinlock.h>
 #include <linux/ktime.h>
 
 #include <gpex_clock.h>
@@ -42,6 +43,8 @@
  * enough evidence that the frame will not land on time.
  */
 #define GPEX_DVFS_FRAME_BOOST_JOB_US 8000
+#define GPEX_DVFS_FRAME_BOOST_FRAME_US 0
+#define GPEX_DVFS_FRAME_BOOST_MAX_FRAME_US 33000
 /* Kept short enough that the clock is back at min before the GPU would have
  * power gated anyway, long enough to bridge the gap between two frames.
  */
@@ -102,9 +105,23 @@ struct dvfs_info {
 	struct {
 		int clock; /* 0 disables the boost */
 		int job_us;
+		int frame_us; /* 0 disables the per frame path */
 		int release_ms;
 		atomic64_t last_late_job;
 		atomic_t late_job_cnt;
+
+		/* Per frame GPU busy accounting. Atoms on different job slots run
+		 * in parallel, so summing their durations overcounts. Count how
+		 * many are in flight instead and accumulate the wall time during
+		 * which at least one is, which is the same quantity the kbase pm
+		 * metrics call "busy".
+		 */
+		raw_spinlock_t busy_lock;
+		int nr_running;
+		ktime_t busy_since;
+		u64 frame_busy_ns;
+		int last_frame_us;
+		atomic_t late_frame_cnt;
 	} frame_boost;
 };
 

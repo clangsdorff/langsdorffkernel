@@ -42,6 +42,21 @@ void gpex_dvfs_notify_render_job(u64 ns_spent)
 	return;
 }
 
+void gpex_dvfs_notify_atom_start(void)
+{
+	return;
+}
+
+void gpex_dvfs_notify_atom_end(void)
+{
+	return;
+}
+
+void gpex_dvfs_notify_frame_end(void)
+{
+	return;
+}
+
 int gpex_dvfs_enable(void)
 {
 	return 0;

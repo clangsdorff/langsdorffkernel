@@ -31,6 +31,7 @@
 #include <gpex_pm.h>
 #include <gpex_qos.h>
 #include <gpex_clock.h>
+#include <gpex_dvfs.h>
 #include <gpex_gts.h>
 #include <gpex_tsg.h>
 #include <gpex_cmar_boost.h>
@@ -146,11 +147,22 @@ void mali_exynos_update_lastjob_time(int slot_nr)
 void mali_exynos_update_jobsubmit_time(void)
 {
 	gpex_tsg_update_jobsubmit_time();
+
+	/* The out fence for this frame has been signalled, so the frame is done
+	 * and whatever the GPU spent on it has been accumulated by now.
+	 */
+	gpex_dvfs_notify_frame_end();
 }
 
 void mali_exynos_sum_jobs_time(int slot_nr)
 {
 	gpex_tsg_sum_jobs_time(slot_nr);
+	gpex_dvfs_notify_atom_end();
+}
+
+void mali_exynos_dvfs_atom_start(void)
+{
+	gpex_dvfs_notify_atom_start();
 }
 
 void mali_exynos_amigo_interframe_hw_update_eof(void)
