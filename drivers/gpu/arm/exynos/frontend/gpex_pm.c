@@ -264,8 +264,16 @@ CREATE_SYSFS_KOBJECT_WRITE_FUNCTION(set_sysfs_poweroff_delay)
 static ssize_t show_sysfs_poweroff_delay(char *buf)
 {
 	ssize_t ret = 0;
+	int delay = pm.runtime_pm_delay_time;
 
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d", pm.runtime_pm_delay_time);
+	/* The store does take effect, but only until the recovery work item puts
+	 * the devicetree default back. Reporting that default unconditionally made
+	 * the node look like it accepted writes and then ignored them.
+	 */
+	if (pm.dev && pm.dev->power.use_autosuspend)
+		delay = pm.dev->power.autosuspend_delay;
+
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d", delay);
 
 	if (ret < PAGE_SIZE - 1) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");

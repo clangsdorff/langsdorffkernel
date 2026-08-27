@@ -21,6 +21,9 @@
 #ifndef _GPEX_DVFS_INTERNAL_H_
 #define _GPEX_DVFS_INTERNAL_H_
 
+#include <linux/atomic.h>
+#include <linux/ktime.h>
+
 #include <gpex_clock.h>
 
 #define DVFS_ASSERT(x)                                                                             \
@@ -34,6 +37,17 @@
 
 #define GPEX_DVFS_MIN_POLLING_SPEED 4
 #define GPEX_DVFS_MAX_POLLING_SPEED 1000
+
+/* A fragment job this long alone eats half of a 60Hz frame budget, which is
+ * enough evidence that the frame will not land on time.
+ */
+#define GPEX_DVFS_FRAME_BOOST_JOB_US 8000
+/* Kept short enough that the clock is back at min before the GPU would have
+ * power gated anyway, long enough to bridge the gap between two frames.
+ */
+#define GPEX_DVFS_FRAME_BOOST_RELEASE_MS 150
+#define GPEX_DVFS_FRAME_BOOST_MAX_JOB_US 33000
+#define GPEX_DVFS_FRAME_BOOST_MAX_RELEASE_MS 1000
 
 typedef struct _gpu_dvfs_env_data {
 	int utilization;
@@ -81,6 +95,17 @@ struct dvfs_info {
 		int highspeed_delay;
 		int delay_count;
 	} interactive;
+
+	/* Deadline driven boost. Written from the job completion path (atomics
+	 * only, called under hwaccess_lock), consumed by the dvfs work item.
+	 */
+	struct {
+		int clock; /* 0 disables the boost */
+		int job_us;
+		int release_ms;
+		atomic64_t last_late_job;
+		atomic_t late_job_cnt;
+	} frame_boost;
 };
 
 int gpex_dvfs_sysfs_init(struct dvfs_info *_dvfs);

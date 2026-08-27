@@ -52,6 +52,20 @@ void gpex_dvfs_term(void);
  */
 int gpex_dvfs_set_clock_callback(void);
 
+/**
+ * gpex_dvfs_notify_render_job() - report how long a frame pipeline job ran
+ * @ns_spent: job execution time in nanoseconds
+ *
+ * Called from the job completion path for vertex and fragment jobs, the two
+ * that belong to a frame. A job that overruns its share of the frame budget
+ * arms the deadline driven clock floor, which utilization based governing
+ * cannot detect on its own. Jobs flagged BASE_JD_REQ_ONLY_COMPUTE are left out:
+ * they carry no frame deadline.
+ *
+ * Context: called with hwaccess_lock held and interrupts disabled.
+ */
+void gpex_dvfs_notify_render_job(u64 ns_spent);
+
 /*******************
  * SETTERS
  ******************/

@@ -83,6 +83,36 @@ static void gpex_dvfs_context_init(struct device **dev)
 
 	dvfs.gpu_dvfs_config_clock = gpexbe_devicetree_get_int(gpu_dvfs_bl_config_clock);
 	dvfs.polling_speed = gpexbe_devicetree_get_int(gpu_dvfs_polling_time);
+
+	/* Graded response to two different kinds of evidence: the interactive
+	 * governor's highspeed jump answers "utilization is high" with a mid
+	 * table clock, this answers "a frame is actually running late" with the
+	 * platform's interactive ceiling. Falls back to the highspeed clock when
+	 * the devicetree does not name one.
+	 */
+	dvfs.frame_boost.clock = gpexbe_devicetree_get_int(gpu_frame_boost_clock);
+	if (dvfs.frame_boost.clock <= 0)
+		dvfs.frame_boost.clock = gpexbe_devicetree_get_int(interactive_info.highspeed_clock);
+	dvfs.frame_boost.job_us = GPEX_DVFS_FRAME_BOOST_JOB_US;
+	dvfs.frame_boost.release_ms = GPEX_DVFS_FRAME_BOOST_RELEASE_MS;
+	atomic64_set(&dvfs.frame_boost.last_late_job, 0);
+	atomic_set(&dvfs.frame_boost.late_job_cnt, 0);
+}
+
+void gpex_dvfs_notify_render_job(u64 ns_spent)
+{
+	if (dvfs.frame_boost.clock <= 0)
+		return;
+
+	if (ns_spent < (u64)dvfs.frame_boost.job_us * NSEC_PER_USEC)
+		return;
+
+	/* Called with hwaccess_lock held and interrupts off, so nothing here may
+	 * sleep or take a lock. The dvfs work item picks the timestamp up on its
+	 * next poll.
+	 */
+	atomic64_set(&dvfs.frame_boost.last_late_job, ktime_get_boottime());
+	atomic_inc(&dvfs.frame_boost.late_job_cnt);
 }
 
 static int gpu_dvfs_calculate_env_data()
@@ -180,6 +210,12 @@ void gpex_dvfs_start()
 void gpex_dvfs_stop()
 {
 	gpu_dvfs_timer_control(false);
+
+	/* The GPU is about to be gated. Whatever job was running late belongs to
+	 * a workload that has already finished, so the evidence must not survive
+	 * into the next wake-up and boost the first poll after resume.
+	 */
+	atomic64_set(&dvfs.frame_boost.last_late_job, 0);
 }
 /* TODO */
 /* MIN_POLLING_SPEED is dependant to Operating System(kernel timer, HZ) */
