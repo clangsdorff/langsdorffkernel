@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm_qos.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
@@ -53,6 +54,16 @@ static LIST_HEAD(cpufreq_governor_list);
 	list_for_each_entry(__governor, &cpufreq_governor_list, governor_list)
 
 static char default_governor[CPUFREQ_NAME_LEN];
+
+/*
+ * The vendor init.rc still carries Samsung own comment "Change CPUFreq
+ * governor to energy_aware(EGO)" directly above two lines that write
+ * schedutil, so EMS own governor never runs even though the emstune tables in
+ * DT are written for it. Turn that boot-time write back into what the comment
+ * says. Only init is redirected; whatever userspace asks for later takes
+ * effect as asked.
+ */
+static bool redirect_schedutil = true;
 
 /*
  * The "cpufreq driver" - the arch- or hardware-dependent low
@@ -802,9 +813,19 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 
 		ret = cpufreq_set_policy(policy, NULL, new_pol);
 	} else {
-		struct cpufreq_governor *new_gov;
+		struct cpufreq_governor *new_gov = NULL;
 
-		new_gov = cpufreq_parse_governor(str_governor);
+		if (redirect_schedutil && !strcmp(str_governor, "schedutil") &&
+		    !strcmp(current->comm, "init")) {
+			new_gov = cpufreq_parse_governor("energy_aware");
+			if (new_gov)
+				pr_info("policy%u: init asked for schedutil, using energy_aware\n",
+					policy->cpu);
+		}
+
+		/* fall back to the requested governor if EMS is not loaded */
+		if (!new_gov)
+			new_gov = cpufreq_parse_governor(str_governor);
 		if (!new_gov)
 			return -EINVAL;
 
@@ -2898,4 +2919,5 @@ static int __init cpufreq_core_init(void)
 }
 module_param(off, int, 0444);
 module_param_string(default_governor, default_governor, CPUFREQ_NAME_LEN, 0444);
+module_param(redirect_schedutil, bool, 0644);
 core_initcall(cpufreq_core_init);
