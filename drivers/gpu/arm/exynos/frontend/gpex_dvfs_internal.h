@@ -23,7 +23,6 @@
 
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
-#include <linux/ktime.h>
 
 #include <gpex_clock.h>
 
@@ -110,16 +109,12 @@ struct dvfs_info {
 		atomic64_t last_late_job;
 		atomic_t late_job_cnt;
 
-		/* Per frame GPU busy accounting. Atoms on different job slots run
-		 * in parallel, so summing their durations overcounts. Count how
-		 * many are in flight instead and accumulate the wall time during
-		 * which at least one is, which is the same quantity the kbase pm
-		 * metrics call "busy".
+		/* Per frame GPU busy accounting. Fed the same intervals kbase
+		 * charges to its pm metrics "busy" counter, so this is the union
+		 * of the times any job slot was running rather than a sum over
+		 * atoms, which would overcount slots running in parallel.
 		 */
-		raw_spinlock_t busy_lock;
-		int nr_running;
-		ktime_t busy_since;
-		u64 frame_busy_ns;
+		atomic64_t frame_busy_ns;
 		int last_frame_us;
 		atomic_t late_frame_cnt;
 	} frame_boost;

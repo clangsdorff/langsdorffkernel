@@ -42,12 +42,7 @@ void gpex_dvfs_notify_render_job(u64 ns_spent)
 	return;
 }
 
-void gpex_dvfs_notify_atom_start(void)
-{
-	return;
-}
-
-void gpex_dvfs_notify_atom_end(void)
+void gpex_dvfs_notify_busy_ns(bool gpu_active, u64 ns_spent)
 {
 	return;
 }

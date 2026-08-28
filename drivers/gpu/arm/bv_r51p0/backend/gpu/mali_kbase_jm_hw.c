@@ -201,7 +201,6 @@ int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom,
 	katom->start_timestamp = ktime_get_raw();
 
 	mali_exynos_update_lastjob_time(katom->slot_nr);
-	mali_exynos_dvfs_atom_start();
 
 	/* GO ! */
 	dev_dbg(kbdev->dev, "JS: Submitting atom %pK from ctx %pK to js[%d] with head=0x%llx",

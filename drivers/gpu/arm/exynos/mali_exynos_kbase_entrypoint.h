@@ -48,7 +48,6 @@ void mali_exynos_update_firstjob_time(void);
 void mali_exynos_update_lastjob_time(int slot_nr);
 void mali_exynos_update_jobsubmit_time(void);
 void mali_exynos_sum_jobs_time(int slot_nr);
-void mali_exynos_dvfs_atom_start(void);
 void mali_exynos_amigo_interframe_hw_update_eof(void);
 void mali_exynos_amigo_interframe_hw_update(void);
 
