@@ -67,18 +67,21 @@ int gpex_dvfs_set_clock_callback(void);
 void gpex_dvfs_notify_render_job(u64 ns_spent);
 
 /**
- * gpex_dvfs_notify_atom_start() - an atom has been written to a job slot
+ * gpex_dvfs_notify_busy_ns() - charge an interval to the current frame
+ * @gpu_active: whether the GPU was running work over the interval
+ * @ns_spent: length of the interval in nanoseconds
  *
- * Context: called with hwaccess_lock held and interrupts disabled.
- */
-void gpex_dvfs_notify_atom_start(void);
-
-/**
- * gpex_dvfs_notify_atom_end() - an atom has completed
+ * Fed from the same two places that charge kbase's pm metrics, so the frame
+ * accumulator ends up holding the identical quantity utilization is computed
+ * from. Deriving it here from atom submit and complete events instead would
+ * need those to pair up exactly; they do not, because an atom can be soft
+ * stopped and resubmitted, and a single lost pair leaves an in flight counter
+ * stuck above zero for good, at which point the accumulator silently degrades
+ * into wall clock time.
  *
- * Context: called with hwaccess_lock held and interrupts disabled.
+ * Context: any, including hardirq with hwaccess_lock held.
  */
-void gpex_dvfs_notify_atom_end(void);
+void gpex_dvfs_notify_busy_ns(bool gpu_active, u64 ns_spent);
 
 /**
  * gpex_dvfs_notify_frame_end() - the frame's out fence has been signalled

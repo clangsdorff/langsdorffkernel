@@ -49,6 +49,12 @@
 
 #include <gpexbe_clock.h>
 
+/* kbase carries pm metrics durations right shifted by KBASE_PM_TIME_SHIFT,
+ * that is in units of 256ns. The define lives in a kbase .c file, so the value
+ * is repeated here the same way gpexbe_utilization.c already repeats it.
+ */
+#define MALI_EXYNOS_PM_TIME_SHIFT 8
+
 static int mali_exynos_ioctl_amigo_flags_fn(struct kbase_context *kctx,
 					    struct mali_exynos_ioctl_amigo_flags *flags)
 {
@@ -157,12 +163,6 @@ void mali_exynos_update_jobsubmit_time(void)
 void mali_exynos_sum_jobs_time(int slot_nr)
 {
 	gpex_tsg_sum_jobs_time(slot_nr);
-	gpex_dvfs_notify_atom_end();
-}
-
-void mali_exynos_dvfs_atom_start(void)
-{
-	gpex_dvfs_notify_atom_start();
 }
 
 void mali_exynos_amigo_interframe_hw_update_eof(void)
@@ -312,8 +312,11 @@ void mali_exynos_set_jobslot_status(int slot, bool is_active)
 
 void mali_exynos_update_jobslot_util(int slot, bool gpu_active, u32 ns_time)
 {
-	if (slot == 0)
+	if (slot == 0) {
 		gpex_gts_update_jobslot_util(gpu_active, ns_time);
+		gpex_dvfs_notify_busy_ns(gpu_active,
+					 (u64)ns_time << MALI_EXYNOS_PM_TIME_SHIFT);
+	}
 }
 
 void mali_exynos_update_job_load(struct kbase_jd_atom *katom, ktime_t *end_timestamp)

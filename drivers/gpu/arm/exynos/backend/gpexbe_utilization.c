@@ -209,6 +209,7 @@ int gpexbe_utilization_calc_utilization(void)
 	}
 
 	gpex_gts_update_jobslot_util(kbdev->pm.backend.metrics.gpu_active, ns_time);
+	gpex_dvfs_notify_busy_ns(kbdev->pm.backend.metrics.gpu_active, (u64)ktime_to_ns(diff));
 
 	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
 
