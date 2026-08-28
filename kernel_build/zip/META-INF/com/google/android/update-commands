@@ -18,7 +18,14 @@
 ### All lines starting with '#' are treated as comments
 ### Commands & arguments should be separated by ' ', '=' or ':'
 
-prop_startswith ro.boot.bootloader A145F
+# ro.boot.bootloader is <model><region><version>, e.g. A145FXXU9DYG5, so the first
+# check accepts the Galaxy A14 4G family and rejects everything else, including the
+# 5G model (A146) and the other Exynos 850 phones (A047F, A135F). That family is
+# split across two SoCs: A145F and A145M are Exynos 850, while A145P and A145R are
+# MediaTek and cannot run this kernel, so the second check keeps only the Exynos
+# ones. Both checks must pass, and a failing one aborts the flash with a message.
+prop_startswith ro.boot.bootloader A145
+prop_equals ro.boot.hardware s5e3830
 quick_flash yes
 flash_compressed boot.br /dev/block/by-name/boot
 flash_compressed vendor_boot.br /dev/block/by-name/vendor_boot

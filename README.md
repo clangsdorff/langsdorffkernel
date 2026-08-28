@@ -1,7 +1,9 @@
-# langsdorffkernel Touchfix Project for Samsung Galaxy A14 4G (A145F)
+# langsdorffkernel Touchfix Project for Samsung Galaxy A14 4G (A145F & A145M)
 **Features**
 - Fixed touchscreen compatibility on GSI builds.
 - CPU overclocked to 2210 MHz and GPU overclocked to 1196 MHz.
+- Reworked GPU DVFS: fixed the dead highspeed jump, retuned thresholds, lowered the CPU floors.
+- GPU overclock steps now reachable, opening at 65% utilization instead of 92%.
 - Updated GPU driver (bifrost r51p0)
 - LZ4 compressed ZRAM.
 - Official KernelSU with SUSFS.
@@ -45,5 +47,5 @@
 - Releases: [Here](https://github.com/clangsdorff/langsdorffkernel/releases)
 
 **Device & Notes**
-- Device: A145F (Exynos 850)
+- Device: A145F / A145M (Exynos 850)
 - Bootloader: A145FXXU9DYG5
