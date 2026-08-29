@@ -43,9 +43,12 @@ static struct _clock_info *clk_info;
  *
  * driven by a PID whose setpoint is the current stage's skin threshold, so the
  * ceiling starts walking down as soon as the skin estimate passes 38 C. At
- * that point the GPU junction is typically 55-67 C, while the first G3D
- * thermal trip is 76 C. The kernel is simply better informed than SSRM is
- * about whether the GPU needs to slow down.
+ * that point the GPU junction is typically 55-67 C, while the kernel's own
+ * first effective cut is at 86 C: the G3D zone declares trips at 76 and 81 C
+ * too, but every cooling-map entry binds state 0 to 0, so throttling is done
+ * by the vendor gpu_cooling path and emul_temp shows nothing happening below
+ * 86 C. The kernel is simply better informed than SSRM is about whether the
+ * GPU needs to slow down.
  *
  * Requests below this floor are raised to it. At 1001000 the three upper
  * stages (865/754/377 MHz) are neutralised, so SSRM keeps the ceiling it walks
@@ -57,8 +60,8 @@ static struct _clock_info *clk_info;
  *
  * This only bounds SYSFS_LOCK. TMU_LOCK is a separate entry in
  * user_max_lock[] and the effective ceiling is the minimum across all lock
- * sources, so junction protection is untouched either way: from 76 C the
- * thermal zone still cuts the GPU regardless of this value. What the floor
+ * sources, so junction protection is untouched either way: the 86 C junction
+ * cut still fires exactly as before, regardless of this value. What the floor
  * trades away is skin comfort, not silicon safety.
  *
  * Set to 0 to restore stock behaviour. Raising it one bin to 1105000 also
