@@ -23,6 +23,32 @@
 #define ADC_SAMPLING_CNT	1
 #define THERMISTOR_NAME_LEN	32
 
+/*
+ * Samsung's userspace thermal manager (SSRM) walks the GPU ceiling down once its
+ * skin estimate crosses a threshold. That estimate is dominated by the AP board
+ * thermistor (the vendor HAL's "AP" virtual sensor tracks this node 1:1);
+ * measured throttle onset is 43-47 C at the node depending on thermal history.
+ * The GPU junction is only ~60 C at that point and the kernel's own first TMU
+ * trip is 76 C, and the cut does not follow the Android thermal-status HAL - it
+ * is SSRM reading this value directly, so biasing it leaves real junction
+ * protection untouched.
+ *
+ * This subtracts a fixed offset from what the id-0 (AP) instance reports through
+ * its sysfs "temperature" attribute - the node the Samsung thermal HAL actually
+ * reads. The curve is preserved, the threshold is shifted: reported = real -
+ * offset. It is only a bias on that one sysfs read; the raw "temp_adc" node and
+ * the in-kernel getter are left alone, so nothing else changes its view of the
+ * board temperature.
+ *
+ * Unit is deci-Celsius to match convert_adc_to_temper(). Default 30 (3.0 C).
+ * Write 0 at runtime to report the real value (stock behaviour):
+ *   /sys/module/sec_thermistor/parameters/ap_therm_offset_dc
+ */
+static int ap_therm_offset_dc = 30;
+module_param(ap_therm_offset_dc, int, 0644);
+MODULE_PARM_DESC(ap_therm_offset_dc,
+	"deci-Celsius subtracted from the AP thermistor (id 0) sysfs temperature so SSRM throttles the GPU later; 0 = report the real value");
+
 struct sec_therm_info {
 	int id;
 	struct device *dev;
@@ -219,6 +245,10 @@ static ssize_t sec_therm_show_temperature(struct device *dev,
 		temp = convert_adc_to_temper(info, adc);
 	else
 		return adc;
+
+	/* Bias only the AP instance; see ap_therm_offset_dc above. Not clamped. */
+	if (info->id == 0)
+		temp -= ap_therm_offset_dc;
 
 	return sprintf(buf, "%d\n", temp);
 }
