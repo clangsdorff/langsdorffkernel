@@ -2,6 +2,9 @@ package me.weishu.kernelsu.ui.screen.module
 
 import android.annotation.SuppressLint
 import android.app.Activity.RESULT_OK
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -52,8 +55,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Code
@@ -63,6 +68,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,6 +92,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextLayoutResult
@@ -104,6 +111,7 @@ import kotlinx.coroutines.launch
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.model.Module
 import me.weishu.kernelsu.data.model.ModuleUpdateInfo
+import me.weishu.kernelsu.data.repository.isSoftRebootPreferred
 import me.weishu.kernelsu.ui.component.ListPopupDefaults
 import me.weishu.kernelsu.ui.component.ObserveAsEvents
 import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
@@ -127,7 +135,6 @@ import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
@@ -231,14 +238,17 @@ fun ModulePagerMiuix(
             is ModuleEffect.SnackBar -> {
                 // Cancel the previous reboot snackbar so a new one replaces it instead of queueing
                 snackbarJob.value?.cancel()
+                snackbarHostState.newestSnackbarData()?.dismiss()
+                // Soft reboot keeps the jailbreak and still applies module changes
+                val softReboot = isSoftRebootPreferred()
                 snackbarJob.value = scope.launch {
                     val result = snackbarHostState.showSnackbar(
                         message = event.message,
-                        actionLabel = context.getString(R.string.reboot),
+                        actionLabel = context.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
                         duration = SnackbarDuration.Long,
                     )
                     if (result == SnackbarResult.ActionPerformed) {
-                        reboot()
+                        reboot(if (softReboot) "soft_reboot" else "")
                     }
                 }
             }
@@ -252,7 +262,7 @@ fun ModulePagerMiuix(
     }
 
     val listState = rememberLazyListState()
-    val refreshTick = remember { mutableStateOf(0) }
+    val refreshTick = remember { mutableIntStateOf(0) }
     val nestedScrollConnection = remember(uiState.installButtonVisible) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -277,6 +287,13 @@ fun ModulePagerMiuix(
     }
     val offsetHeight by animateDpAsState(
         targetValue = if (fabVisible) 0.dp else 180.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
+        animationSpec = tween(durationMillis = 350)
+    )
+    // The scaffold stacks the snackbar above the FAB slot's measured height, which the
+    // offset-based hide animation does not shrink; slide the snackbar down by the FAB's
+    // footprint (60dp min height + 12dp scaffold spacing) when the FAB is hidden.
+    val snackbarOffsetHeight by animateDpAsState(
+        targetValue = if (fabVisible) 0.dp else 72.dp,
         animationSpec = tween(durationMillis = 350)
     )
 
@@ -475,7 +492,15 @@ fun ModulePagerMiuix(
             }
         },
         snackbarHost = {
-            SnackbarHost(state = snackbarHostState)
+            SnackbarHost(
+                state = snackbarHostState,
+                modifier = if (uiState.installButtonVisible) {
+                    Modifier.offset { IntOffset(x = 0, y = snackbarOffsetHeight.roundToPx()) }
+                } else {
+                    // No FAB slot to stack above: keep the snackbar clear of the main bottom bar.
+                    Modifier.padding(bottom = bottomInnerPadding + 20.dp)
+                },
+            )
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)
     ) { innerPadding ->
@@ -508,77 +533,65 @@ fun ModulePagerMiuix(
                 end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = bottomInnerPadding,
             )
-            if (modules.isEmpty() && !uiState.hasLoaded) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            top = innerPadding.calculateTopPadding(),
-                            start = innerPadding.calculateStartPadding(layoutDirection),
-                            end = innerPadding.calculateEndPadding(layoutDirection),
-                            bottom = bottomInnerPadding
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    InfiniteProgressIndicator()
-                }
-            } else {
-                PullToRefresh(
-                    isRefreshing = uiState.isRefreshing,
-                    pullToRefreshState = pullToRefreshState,
-                    onRefresh = {
-                        actions.onRefresh()
-                        refreshTick.value++
-                    },
-                    refreshTexts = refreshTexts,
-                    contentPadding = contentPadding,
-                ) {
-                    if (modules.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(
-                                    top = innerPadding.calculateTopPadding(),
-                                    start = innerPadding.calculateStartPadding(layoutDirection),
-                                    end = innerPadding.calculateEndPadding(layoutDirection),
-                                    bottom = bottomInnerPadding
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
+            PullToRefresh(
+                isRefreshing = uiState.isRefreshing,
+                pullToRefreshState = pullToRefreshState,
+                onRefresh = {
+                    actions.onRefresh()
+                    refreshTick.intValue++
+                },
+                refreshTexts = refreshTexts,
+                contentPadding = contentPadding,
+            ) {
+                if (modules.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                top = innerPadding.calculateTopPadding(),
+                                start = innerPadding.calculateStartPadding(layoutDirection),
+                                end = innerPadding.calculateEndPadding(layoutDirection),
+                                bottom = bottomInnerPadding
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // The refresh indicator doubles as the first-load hint;
+                        // only announce emptiness once loading has finished.
+                        if (uiState.hasLoaded) {
                             Text(
                                 stringResource(R.string.module_empty),
                                 textAlign = TextAlign.Center,
                                 color = Color.Gray,
                             )
                         }
-                    } else {
-                        val latestModules = rememberUpdatedState(modules)
-                        val latestRefreshing = rememberUpdatedState(uiState.isRefreshing)
-                        ScrollToTopOnChange(
-                            listState,
-                            uiState.sortEnabledFirst,
-                            uiState.sortActionFirst,
-                            refreshTick.value,
-                            isBusy = { latestRefreshing.value },
-                        ) { latestModules.value }
-                        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
-                            ModuleList(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .scrollEndHaptic()
-                                    .overScrollVertical()
-                                    .nestedScroll(scrollBehavior.nestedScrollConnection)
-                                    .nestedScroll(nestedScrollConnection),
-                                modules = modules,
-                                updateInfoMap = uiState.updateInfo,
-                                actions = actions,
-                                onModuleAddShortcut = { module, type ->
-                                    onModuleAddShortcut(module, type)
-                                },
-                                contentPadding = contentPadding,
-                                listState = listState,
-                            )
-                        }
+                    }
+                } else {
+                    val latestModules = rememberUpdatedState(modules)
+                    val latestRefreshing = rememberUpdatedState(uiState.isRefreshing)
+                    ScrollToTopOnChange(
+                        listState,
+                        uiState.sortEnabledFirst,
+                        uiState.sortActionFirst,
+                        refreshTick.intValue,
+                        isBusy = { latestRefreshing.value },
+                    ) { latestModules.value }
+                    Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
+                        ModuleList(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .scrollEndHaptic()
+                                .overScrollVertical()
+                                .nestedScroll(scrollBehavior.nestedScrollConnection)
+                                .nestedScroll(nestedScrollConnection),
+                            modules = modules,
+                            updateInfoMap = uiState.updateInfo,
+                            actions = actions,
+                            onModuleAddShortcut = { module, type ->
+                                onModuleAddShortcut(module, type)
+                            },
+                            contentPadding = contentPadding,
+                            listState = listState,
+                        )
                     }
                 }
             }
@@ -609,12 +622,23 @@ private fun ModuleShortcutDialog(
     onDeleteShortcut: () -> Unit,
     onConfirmShortcut: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val resources = LocalResources.current
+
+    fun copyShortcutUrl() {
+        val url = shortcutState.buildShortcutUrl() ?: return
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("KernelSU deep link", url))
+        Toast.makeText(context, resources.getString(R.string.module_shortcut_scheme_copied), Toast.LENGTH_SHORT).show()
+    }
+
     OverlayDialog(
         show = show,
         title = stringResource(R.string.module_shortcut_title),
         onDismissRequest = onDismissRequest,
         content = {
             Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -682,6 +706,11 @@ private fun ModuleShortcutDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                TextButton(
+                    text = stringResource(id = R.string.module_shortcut_copy_scheme),
+                    onClick = ::copyShortcutUrl,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {

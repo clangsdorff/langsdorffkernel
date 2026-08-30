@@ -44,6 +44,7 @@ u32 susfs_get_sid_from_name(const char *secctx_name);
 u32 susfs_get_current_sid(void);
 void susfs_set_batch_sid(void);
 bool susfs_is_current_zygote_domain(void);
+bool susfs_is_current_zygote_next_domain(void);
 bool susfs_is_current_ksu_domain(void);
 bool susfs_is_current_init_domain(void);
 

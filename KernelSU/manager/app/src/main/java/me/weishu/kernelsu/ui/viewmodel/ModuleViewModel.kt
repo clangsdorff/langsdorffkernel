@@ -2,7 +2,6 @@ package me.weishu.kernelsu.ui.viewmodel
 
 import android.os.SystemClock
 import android.util.Log
-import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -28,24 +27,29 @@ import me.weishu.kernelsu.data.model.Module
 import me.weishu.kernelsu.data.model.ModuleUpdateInfo
 import me.weishu.kernelsu.data.repository.ModuleRepository
 import me.weishu.kernelsu.data.repository.ModuleRepositoryImpl
+import me.weishu.kernelsu.data.repository.SettingsRepository
+import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
 import me.weishu.kernelsu.ksuApp
 import me.weishu.kernelsu.ui.component.SearchStatus
 import me.weishu.kernelsu.ui.screen.module.ModuleConfirmDialogState
 import me.weishu.kernelsu.ui.screen.module.ModuleConfirmRequest
 import me.weishu.kernelsu.ui.screen.module.ModuleEffect
 import me.weishu.kernelsu.ui.screen.module.ModuleUiState
+import me.weishu.kernelsu.ui.util.PinyinUtil
 import me.weishu.kernelsu.ui.util.hasMagisk
 import me.weishu.kernelsu.ui.util.module.fetchModuleDetail
 import me.weishu.kernelsu.ui.util.module.fetchReleaseDescriptionHtml
 import okhttp3.Request
 import java.text.Collator
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 import me.weishu.kernelsu.ui.util.toggleModule as toggleModuleUtil
 import me.weishu.kernelsu.ui.util.undoUninstallModule as undoUninstallModuleUtil
 import me.weishu.kernelsu.ui.util.uninstallModule as uninstallModuleUtil
 
 class ModuleViewModel(
-    private val repo: ModuleRepository = ModuleRepositoryImpl()
+    private val repo: ModuleRepository = ModuleRepositoryImpl(),
+    private val settingsRepo: SettingsRepository = SettingsRepositoryImpl()
 ) : ViewModel() {
 
     companion object {
@@ -91,12 +95,11 @@ class ModuleViewModel(
     }
 
     fun initializePreferences() {
-        val prefs = ksuApp.getSharedPreferences("settings", 0)
         _uiState.update {
             it.copy(
-                checkModuleUpdate = prefs.getBoolean("module_check_update", true),
-                sortEnabledFirst = prefs.getBoolean("module_sort_enabled_first", false),
-                sortActionFirst = prefs.getBoolean("module_sort_action_first", false),
+                checkModuleUpdate = settingsRepo.checkModuleUpdate,
+                sortEnabledFirst = settingsRepo.moduleSortEnabledFirst,
+                sortActionFirst = settingsRepo.moduleSortActionFirst,
             )
         }
         updateModuleList()
@@ -104,18 +107,14 @@ class ModuleViewModel(
 
     fun toggleSortActionFirst() {
         val newValue = !_uiState.value.sortActionFirst
-        ksuApp.getSharedPreferences("settings", 0).edit {
-            putBoolean("module_sort_action_first", newValue)
-        }
+        settingsRepo.moduleSortActionFirst = newValue
         _uiState.update { it.copy(sortActionFirst = newValue) }
         updateModuleList()
     }
 
     fun toggleSortEnabledFirst() {
         val newValue = !_uiState.value.sortEnabledFirst
-        ksuApp.getSharedPreferences("settings", 0).edit {
-            putBoolean("module_sort_enabled_first", newValue)
-        }
+        settingsRepo.moduleSortEnabledFirst = newValue
         _uiState.update { it.copy(sortEnabledFirst = newValue) }
         updateModuleList()
     }
@@ -151,8 +150,7 @@ class ModuleViewModel(
         return modules.filter {
             it.id.contains(text, true) || it.name.contains(text, true) ||
                     it.description.contains(text, true) || it.author.contains(text, true) ||
-                    me.weishu.kernelsu.ui.util.HanziToPinyin.getInstance().toPinyinString(it.name)
-                        .contains(text, true)
+                    PinyinUtil.toPinyin(it.name).contains(text, true)
         }
     }
 
@@ -308,7 +306,7 @@ class ModuleViewModel(
         val fetchedEntries = coroutineScope {
             modulesToFetch.map { (id, module, signature) ->
                 async {
-                    val info = withTimeoutOrNull(5_000L) {
+                    val info = withTimeoutOrNull(5_000L.milliseconds) {
                         withContext(Dispatchers.IO) { checkUpdate(module) }
                     } ?: ModuleUpdateInfo.Empty
                     id to ModuleUpdateCache(signature, info)

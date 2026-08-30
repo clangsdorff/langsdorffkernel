@@ -6,6 +6,7 @@ use android_logger::Config;
 use log::{LevelFilter, error, info};
 
 use crate::boot_patch::{BootPatchArgs, BootRestoreArgs};
+use crate::lkm_image::BootPatchV2Args;
 use crate::module::regenerate_preinit_rc;
 use crate::{
     apk_sign, assets, debug, defs, init_event, ksu_uapi, ksucalls, module, module_config, sulog,
@@ -14,7 +15,7 @@ use crate::{
 
 /// KernelSU userspace cli
 #[derive(Parser, Debug)]
-#[command(author, version = defs::VERSION_NAME, about, long_about = None)]
+#[command(author, version = defs::FULL_VERSION, about, long_about = None)]
 struct Args {
     #[command(subcommand)]
     command: Commands,
@@ -60,7 +61,7 @@ enum Commands {
         kmi: Option<String>,
 
         /// manager package name
-        #[arg(long, default_value_t = String::from("me.weishu.kernelsu"))]
+        #[arg(long, default_value_t = String::from(defs::DEFAULT_PACKAGE_NAME))]
         package_name: String,
     },
 
@@ -80,6 +81,9 @@ enum Commands {
     Install {
         #[arg(long, default_value = None)]
         libadbroot: Option<PathBuf>,
+
+        #[arg(long, default_value = None)]
+        data_path: Option<PathBuf>,
     },
 
     /// Unload KernelSU kernel module (LKM Only)
@@ -87,7 +91,7 @@ enum Commands {
 
     /// Uninstall KernelSU modules and itself(LKM Only)
     Uninstall {
-        #[arg(long, default_value_t = String::from("me.weishu.kernelsu"))]
+        #[arg(long, default_value_t = String::from(defs::DEFAULT_PACKAGE_NAME))]
         package_name: String,
     },
 
@@ -114,6 +118,11 @@ enum Commands {
 
     /// Restore boot or init_boot images patched by KernelSU
     BootRestore(BootRestoreArgs),
+
+    /// Patch KernelSU into a boot image
+    ///
+    /// Always operates on a boot image; never selects init_boot or vendor_boot.
+    BootPatchV2(BootPatchV2Args),
 
     /// Show boot information
     BootInfo {
@@ -176,7 +185,7 @@ enum Debug {
     /// Set the manager app, kernel CONFIG_KSU_DEBUG should be enabled.
     SetManager {
         /// manager package name
-        #[arg(default_value_t = String::from("me.weishu.kernelsu"))]
+        #[arg(default_value_t = String::from(defs::DEFAULT_PACKAGE_NAME))]
         apk: String,
     },
 
@@ -218,6 +227,9 @@ enum Debug {
 
     /// Get kernel info
     Info,
+
+    /// Print default package name
+    Package,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -405,7 +417,7 @@ enum Profile {
 enum Feature {
     /// Get feature value and support status
     Get {
-        /// Feature ID or name (su_compat, kernel_umount, sulog, adb_root, selinux_hide)
+        /// Feature ID or name (su_compat, kernel_umount, sulog, adb_root, selinux_hide, webview_zygote_umount)
         id: String,
         /// Read from config file
         #[arg(long, default_value_t = false)]
@@ -425,7 +437,7 @@ enum Feature {
 
     /// Check feature status (supported/unsupported/managed)
     Check {
-        /// Feature ID or name (su_compat, kernel_umount, sulog, adb_root, selinux_hide)
+        /// Feature ID or name (su_compat, kernel_umount, sulog, adb_root, selinux_hide, webview_zygote_umount)
         id: String,
     },
 
@@ -486,7 +498,7 @@ pub fn run() -> Result<()> {
 
     // the kernel executes su with argv[0] = "su" and replace it with us
     let arg0 = std::env::args().next().unwrap_or_default();
-    if arg0 == "su" || arg0 == "/system/bin/su" {
+    if arg0 == "su" || arg0.ends_with("/su") {
         return crate::su::root_shell();
     }
 
@@ -612,7 +624,10 @@ pub fn run() -> Result<()> {
                 }
             }
         }
-        Commands::Install { libadbroot } => utils::install(libadbroot),
+        Commands::Install {
+            libadbroot,
+            data_path,
+        } => utils::install(libadbroot, data_path),
         Commands::Unload => crate::unload::unload(),
         Commands::Uninstall { package_name } => utils::uninstall(&package_name),
         Commands::Sepolicy { command } => match command {
@@ -710,18 +725,17 @@ pub fn run() -> Result<()> {
                 println!("flags: 0x{:x}", info.flags);
                 println!("uapi_version: {}", info.uapi_version);
                 println!("features: 0x{:x}", info.features);
-                println!(
-                    "lkm: {}",
-                    (info.flags & ksu_uapi::KSU_GET_INFO_FLAG_LKM) != 0
-                );
-                println!(
-                    "late_load: {}",
-                    (info.flags & ksu_uapi::KSU_GET_INFO_FLAG_LATE_LOAD) != 0
-                );
+                println!("lkm: {}", ksucalls::is_lkm());
+                println!("late_load: {}", ksucalls::is_late_load());
+                println!("runtime_mode: {}", ksucalls::runtime_mode());
                 println!(
                     "pr_build: {}",
                     (info.flags & ksu_uapi::KSU_GET_INFO_FLAG_PR_BUILD) != 0
                 );
+                Ok(())
+            }
+            Debug::Package => {
+                println!("{}", defs::DEFAULT_PACKAGE_NAME);
                 Ok(())
             }
         },
@@ -769,6 +783,7 @@ pub fn run() -> Result<()> {
             }
         },
         Commands::BootRestore(boot_restore) => crate::boot_patch::restore(boot_restore),
+        Commands::BootPatchV2(patch) => crate::lkm_image::patch_boot(&patch),
         Commands::Resetprop { args } => {
             let mut full_args = vec!["resetprop".to_string()];
             full_args.extend(args);

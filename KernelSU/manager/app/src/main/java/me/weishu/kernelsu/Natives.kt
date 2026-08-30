@@ -2,7 +2,6 @@ package me.weishu.kernelsu
 
 import android.os.Parcelable
 import androidx.annotation.Keep
-import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
@@ -80,6 +79,9 @@ object Natives {
      */
     external fun isKernelUmountEnabled(): Boolean
     external fun setKernelUmountEnabled(enabled: Boolean): Boolean
+
+    external fun isWebViewZygoteUmountEnabled(): Boolean
+    external fun setWebViewZygoteUmountEnabled(enabled: Boolean): Boolean
 
     /**
      * SELinux hide can be disabled temporarily.

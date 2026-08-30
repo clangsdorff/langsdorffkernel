@@ -28,6 +28,8 @@
 
 DEFINE_STATIC_KEY_TRUE(ksu_is_init_rc_hook_enabled);
 DEFINE_STATIC_KEY_TRUE(ksu_is_input_hook_enabled);
+DEFINE_STATIC_KEY_TRUE(is_init_second_stage_not_executed);
+DEFINE_STATIC_KEY_TRUE(is_first_zygote);
 
 // clang-format off
 static const char KERNEL_SU_RC[] =
@@ -137,11 +139,9 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
 {
     struct filename *filename;
     static const char app_process[] = "/system/bin/app_process";
-    static bool first_zygote = true;
 
     /* This applies to versions Android 10+ */
     static const char system_bin_init[] = "/system/bin/init";
-    static bool init_second_stage_executed = false;
 
     if (!filename_ptr)
         return 0;
@@ -151,34 +151,31 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
         return 0;
     }
 
-    // https://cs.android.com/android/platform/superproject/+/android-16.0.0_r2:system/core/init/main.cpp;l=77
-    if (unlikely(!memcmp(filename->name, system_bin_init, sizeof(system_bin_init) - 1) && argv))
-    {
-        char buf[16];
-        if (!init_second_stage_executed &&
-            check_argv(*argv, 1, "second_stage", buf, sizeof(buf)))
-        {
-            pr_info("/system/bin/init second_stage executed\n");
-            ksu_selinux_hide_handle_second_stage();
-            apply_kernelsu_rules();
-            cache_sid();
-            setup_ksu_cred();
-            init_second_stage_executed = true;
+    if (static_branch_unlikely(&is_init_second_stage_not_executed)) {
+        // https://cs.android.com/android/platform/superproject/+/android-16.0.0_r2:system/core/init/main.cpp;l=77
+        if (unlikely(!memcmp(filename->name, system_bin_init, sizeof(system_bin_init) - 1) && argv)) {
+            char buf[16];
+            if (check_argv(*argv, 1, "second_stage", buf, sizeof(buf))) {
+                pr_info("/system/bin/init second_stage executed\n");
+                ksu_selinux_hide_handle_second_stage();
+                apply_kernelsu_rules();
+                cache_sid();
+                setup_ksu_cred();
+                static_branch_disable(&is_init_second_stage_not_executed);
+            }
         }
     }
 
-    if (unlikely(first_zygote && !memcmp(filename->name, app_process, sizeof(app_process) - 1) && argv))
-    {
-        char buf[16];
-        if (check_argv(*argv, 1, "-Xzygote", buf, sizeof(buf))) {
-            pr_info("exec zygote, /data prepared, second_stage: %d\n", init_second_stage_executed);
-            on_post_fs_data();
-            first_zygote = false;
+    if (static_branch_unlikely(&is_first_zygote)) {
+        if (unlikely(!memcmp(filename->name, app_process, sizeof(app_process) - 1) && argv)) {
+            char buf[16];
+            if (check_argv(*argv, 1, "-Xzygote", buf, sizeof(buf))) {
+                pr_info("exec zygote, /data prepared, second_stage: %d\n", !static_key_enabled(&is_init_second_stage_not_executed));
+                on_post_fs_data();
+                static_branch_disable(&is_first_zygote);
+            }
         }
     }
-
-    // - We need to run ksu_handle_execveat_init() at the very end in case the above checks are skipped
-    (void)ksu_handle_execveat_init(filename, argv, envp);
 
     return 0;
 }
@@ -489,14 +486,13 @@ int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *v
         int val = *value;
         pr_info("KEY_VOLUMEDOWN val: %d\n", val);
         if (val) {
+	    // - We cannot call static_branch_disable() here as we are within the
+	    //   spinlock section, which is not sleepable.
+            // - So if volumedown is enough, just do nothing until it gets disabled by on_post_fs_data().
+            if (is_volumedown_enough(volumedown_pressed_count))
+                return 0;
             // key pressed, count it
             volumedown_pressed_count += 1;
-            if (is_volumedown_enough(volumedown_pressed_count)) {
-                if (static_key_enabled(&ksu_is_input_hook_enabled)) {
-                    static_branch_disable(&ksu_is_input_hook_enabled);
-                    pr_info("ksu_input_hook is disabled\n");
-                }
-            }
         }
     }
 

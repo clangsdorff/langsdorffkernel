@@ -70,14 +70,14 @@ static long setup_ld_preload(void ***envp_user_ptr)
     ld_preload_p = stackp = ALIGN_DOWN(stackp - sizeof(kLdPreload), 8);
     ret = copy_to_user(ld_preload_p, kLdPreload, sizeof(kLdPreload));
     if (ret != 0) {
-        pr_warn("write ld_preload when adb_root_handle_execve failed: %ld\n", ret);
+        pr_warn("write ld_preload when adb_root_handle_execveat failed: %ld\n", ret);
         return -EFAULT;
     }
 
     ld_library_path_p = stackp = ALIGN_DOWN(stackp - sizeof(kLdLibraryPath), 8);
     ret = copy_to_user(ld_library_path_p, kLdLibraryPath, sizeof(kLdLibraryPath));
     if (ret != 0) {
-        pr_warn("write ld_library_path when adb_root_handle_execve failed: %ld\n", ret);
+        pr_warn("write ld_library_path when adb_root_handle_execveat failed: %ld\n", ret);
         return -EFAULT;
     }
 
@@ -91,7 +91,7 @@ static long setup_ld_preload(void ***envp_user_ptr)
         tmp_env_p = tmp_env_p2;
         ret = copy_from_user(&tmp_env_p[env_count], envp + env_count * kPtrSize, kReadEnvBatch * kPtrSize);
         if (ret < 0) {
-            pr_warn("Access envp when adb_root_handle_execve failed: %ld\n", ret);
+            pr_warn("Access envp when adb_root_handle_execveat failed: %ld\n", ret);
             ret = -EFAULT;
             goto out_release_env_p;
         }
@@ -146,7 +146,7 @@ out_release_env_p:
     return ret;
 }
 
-static long do_ksu_adb_root_handle_execve(const char *filename, void ***envp_user_ptr)
+static long do_ksu_adb_root_handle_execveat(const char *filename, void ***envp_user_ptr)
 {
     if (likely(is_exec_adbd(filename) != 1)) {
         return 0;
@@ -171,10 +171,10 @@ static long do_ksu_adb_root_handle_execve(const char *filename, void ***envp_use
     return 0;
 }
 
-long ksu_adb_root_handle_execve(const char *filename, void ***envp_user_ptr)
+long ksu_adb_root_handle_execveat(const char *filename, void ***envp_user_ptr)
 {
     if (static_branch_unlikely(&ksu_adb_root)) {
-        return do_ksu_adb_root_handle_execve(filename, envp_user_ptr);
+        return do_ksu_adb_root_handle_execveat(filename, envp_user_ptr);
     }
     return 0;
 }

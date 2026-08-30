@@ -2,6 +2,7 @@
 #include <linux/slab.h>
 #include <linux/task_work.h>
 #include <linux/cred.h>
+#include <linux/compiler.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -19,6 +20,7 @@
 #include "ksu.h"
 
 static bool ksu_kernel_umount_enabled = true;
+bool ksu_webview_zygote_umount_enabled = false;
 
 static int kernel_umount_feature_get(u64 *value)
 {
@@ -39,6 +41,27 @@ static const struct ksu_feature_handler kernel_umount_handler = {
     .name = "kernel_umount",
     .get_handler = kernel_umount_feature_get,
     .set_handler = kernel_umount_feature_set,
+};
+
+static int webview_zygote_umount_feature_get(u64 *value)
+{
+    *value = ksu_webview_zygote_umount_enabled ? 1 : 0;
+    return 0;
+}
+
+static int webview_zygote_umount_feature_set(u64 value)
+{
+    bool enable = value != 0;
+    ksu_webview_zygote_umount_enabled = enable;
+    pr_info("webview_zygote_umount: set to %d\n", enable);
+    return 0;
+}
+
+static const struct ksu_feature_handler webview_zygote_umount_handler = {
+    .feature_id = KSU_FEATURE_WEBVIEW_ZYGOTE_UMOUNT,
+    .name = "webview_zygote_umount",
+    .get_handler = webview_zygote_umount_feature_get,
+    .set_handler = webview_zygote_umount_feature_set,
 };
 
 extern int path_umount(struct path *path, int flags);
@@ -106,9 +129,13 @@ void __init ksu_kernel_umount_init(void)
     if (ksu_register_feature_handler(&kernel_umount_handler)) {
         pr_err("Failed to register kernel_umount feature handler\n");
     }
+    if (ksu_register_feature_handler(&webview_zygote_umount_handler)) {
+        pr_err("Failed to register webview_zygote_umount feature handler\n");
+    }
 }
 
 void __exit ksu_kernel_umount_exit(void)
 {
+    ksu_unregister_feature_handler(KSU_FEATURE_WEBVIEW_ZYGOTE_UMOUNT);
     ksu_unregister_feature_handler(KSU_FEATURE_KERNEL_UMOUNT);
 }
