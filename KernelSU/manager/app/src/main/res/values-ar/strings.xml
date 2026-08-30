@@ -101,7 +101,12 @@
     <string name="enable_web_debugging">تمكين تصحيح أخطاء WebView</string>
     <string name="enable_web_debugging_summary">يمكن استخدامه لتصحيح أخطاء WebUI، يرجى تمكينه فقط عند الحاجة.</string>
     <string name="install_next">التالي</string>
-    <string name="select_file">اختيار ملف</string>
+    <string name="select_file">اختيار ملف وتصحيحه</string>
+    <string name="download_file">تنزيل ملف وتصحيحه</string>
+    <string name="download_dialog_title">أدخل رابط الملف</string>
+    <string name="download_dialog_msg">ملف OTA كاملة أو ملف المصنع</string>
+    <string name="download_no_boot_partition">لم يتم العثور على قسم boot أو init_boot أو vendor_boot في الصورة</string>
+    <string name="download_probe_failed">فشل فحص الصورة: %1$s</string>
     <string name="direct_install">تثبيت مباشر (موصى به)</string>
     <string name="install_inactive_slot">التثبيت على فتحة غير نشطة (بعد OTA)</string>
     <string name="install_inactive_slot_warning">سيتم **إجبار** جهازك على التمهيد إلى الفتحة غير النشطة الحالية بعد إعادة التشغيل!
@@ -133,4 +138,6 @@
     <string name="settings_kernel_umount">إلغاء تحميل النواة</string>
     <string name="settings_kernel_umount_summary">سلوك إلغاء تحميل مستوى النواة الذي يسيطر عليه KernelSU</string>
     <string name="profile_flags_desc_no_new_privs">يمنع المزيد من تصعيد الصلاحيات عبر KernelSU من داخل سياق ملف تعريف الروت هذا.</string>
+    <string name="install_force_backup">نسخ احتياطي كصورة أصلية</string>
+    <string name="install_force_backup_summary">يرجى التأكد من أن صورة boot التي اخترتها هي الصورة الأصلية</string>
 </resources>

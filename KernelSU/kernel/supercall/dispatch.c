@@ -433,7 +433,7 @@ static int do_manage_mark(void __user *arg)
 
     switch (cmd.operation) {
         case KSU_MARK_GET: {
-            if (susfs_is_current_proc_umounted()) {
+            if (susfs_is_current_proc_no_su()) {
                 ret = 0; // SYSCALL_TRACEPOINT is NOT flagged
             } else {
                 ret = 1; // SYSCALL_TRACEPOINT is flagged
