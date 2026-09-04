@@ -153,8 +153,8 @@ find . | cpio --quiet -o -H newc -R root:root | lz4 -9cl > ../ramdisk_platform.l
 cd ..
 {
     echo "buildtime_bootconfig=enable"
-    echo 'kernel.cmupmucal.margin_cpucl0 = "-10"'
-    echo 'kernel.cmupmucal.margin_cpucl1 = "-10"'
+    echo 'kernel.cmupmucal.margin_cpucl0 = "-6"'
+    echo 'kernel.cmupmucal.margin_cpucl1 = "-6"'
 } > bootconfig
 
 $MKBOOTIMG --header_version 4 \
