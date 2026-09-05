@@ -760,6 +760,29 @@ static void update_min_limit(void)
 		update_max_limit();
 }
 
+static void update_min_limit_wo_boost(void)
+{
+	enum ufc_ctrl_type type = PM_QOS_MIN_LIMIT_WO_BOOST;
+	int freq, index;
+	int i;
+
+	freq = ufc.min_limit_wo_boost;
+
+	if (is_released_freq(freq)) {
+		release_limit_freq(type);
+		return;
+	}
+
+	index = find_cloest_vfreq_index(ufc.min_limit_table, freq, CPUFREQ_RELATION_L);
+
+	for (i = 0; i < ufc.num_of_domain; i++) {
+		struct ufc_domain *dom = ufc.domain_list[i];
+		struct freq_qos_request *req = get_freq_qos_req(dom, type);
+
+		freq_qos_update_request(req, ufc.min_limit_table[index][dom->index]);
+	}
+}
+
 int ufc_update_request(enum ufc_user_type user, enum ufc_ctrl_type type, int freq)
 {
 	struct ufc_request *req;
@@ -862,6 +885,13 @@ static ssize_t cpufreq_min_limit_show(struct kobject *kobj, char *buf)
 }
 static ssize_t cpufreq_min_limit_store(struct kobject *kobj, const char *buf, size_t count)
 {
+	int input;
+
+	if (!sscanf(buf, "%8d", &input))
+		return -EINVAL;
+
+	ufc_update_request(USERSPACE, PM_QOS_MIN_LIMIT, input);
+
 	return count;
 }
 static UFC_ATTR_RW(cpufreq_min_limit);
@@ -872,6 +902,14 @@ static ssize_t cpufreq_min_limit_wo_boost_show(struct kobject *kobj, char *buf)
 }
 static ssize_t cpufreq_min_limit_wo_boost_store(struct kobject *kobj, const char *buf, size_t count)
 {
+	int input;
+
+	if (!sscanf(buf, "%8d", &input))
+		return -EINVAL;
+
+	ufc.min_limit_wo_boost = input;
+	update_min_limit_wo_boost();
+
 	return count;
 }
 static UFC_ATTR_RW(cpufreq_min_limit_wo_boost);
