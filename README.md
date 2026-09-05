@@ -2,7 +2,7 @@
 **Features**
 - Fixed touchscreen compatibility on GSI builds.
 - CPU overclocked to 2210 MHz and GPU overclocked to 1196 MHz.
-- CPU rail undervolted by 10%.
+- CPU rail undervolted by 6%.
 - Boots into the `energy_aware` governor instead of `schedutil`.
 - Reworked GPU DVFS: fixed the dead highspeed jump, retuned thresholds, lowered the CPU floors.
 - Every GPU clock step reachable and holdable. 1105 MHz opens at 65% utilization, 1196 MHz at 70%.
