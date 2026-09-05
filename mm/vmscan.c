@@ -2608,6 +2608,20 @@ static struct attribute_group vmscan_attr_group = {
 	.attrs = vmscan_attrs,
 	.name = "vmscan",
 };
+
+/*
+ * The same two attributes, published a second time under /sys/kernel/sec_mm/.
+ * Newer Samsung userspace looks for them there: the HyPer HAL's
+ * KERNEL_APP_START_NOTIFY resource has BoostPath /sys/kernel/sec_mm/am_app_launch
+ * in /vendor/etc/hyper/config_vendor.json, and init.memory.rc chowns both
+ * /sys/kernel/sec_mm/am_app_launch and /sys/kernel/sec_mm/mem_boost_mode.
+ * No .name, so the attributes land directly in the sec_mm directory.
+ */
+static struct kobject *sec_mm_kobj;
+
+static struct attribute_group sec_mm_attr_group = {
+	.attrs = vmscan_attrs,
+};
 #endif
 
 /*
@@ -7249,6 +7263,12 @@ static int __init kswapd_init(void)
 #ifdef CONFIG_SYSFS
 	if (sysfs_create_group(mm_kobj, &vmscan_attr_group))
 		pr_err("vmscan: register sysfs failed\n");
+
+	sec_mm_kobj = kobject_create_and_add("sec_mm", kernel_kobj);
+	if (!sec_mm_kobj)
+		pr_err("vmscan: create sec_mm kobject failed\n");
+	else if (sysfs_create_group(sec_mm_kobj, &sec_mm_attr_group))
+		pr_err("vmscan: register sec_mm sysfs failed\n");
 #endif
 	return 0;
 }
