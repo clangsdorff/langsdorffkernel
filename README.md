@@ -9,7 +9,6 @@
 - Floor under the GPU clock ceiling, default 1001 MHz.
 - Runtime tunables for the GPU ceiling floor, the AP thermistor offset, the governor redirect and the CPU voltage margin.
 - Updated GPU driver (bifrost r51p0)
-- LZ4 compressed ZRAM.
 - Official KernelSU v3.3.0 with SUSFS v2.3.0.
 - Dex touchpad support for OneUI ROMs.
 - Removed firmware checks from check_connection in novatek touchscreen driver to fix 2 seconds delay for RestlessOS treble patchset based GSI's
