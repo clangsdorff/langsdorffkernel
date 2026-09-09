@@ -147,15 +147,38 @@ DEVICE_ATTR_RW(sched_stat);
  ****************************************************************/
 static int profile_heavy_task_ratio = 900;	/* 90% */
 
-/* heavy task should be included in TOP-APP or FOREGOUND */
+/* heavy task should be user-facing work */
 static inline bool htask_enabled_grp(struct task_struct *p)
 {
 	int grp = cpuctl_task_group_idx(p);
 
-	if (grp != CGROUP_TOPAPP && grp != CGROUP_FOREGROUND)
-		return false;
+	if (grp == CGROUP_TOPAPP || grp == CGROUP_FOREGROUND)
+		return true;
 
-	return true;
+	/*
+	 * Android leaves several user-facing native daemons in the cpu
+	 * controller root group. They are started with "task_profiles
+	 * ProcessCapacityHigh", which joins the foreground *cpuset* only and
+	 * never touches /dev/cpuctl, so cpuctl_task_group_idx() reports
+	 * CGROUP_ROOT for them. media.swcodec is one of those, and on this SoC
+	 * it decodes every VP9 and AV1 frame in software - the MFC supports
+	 * neither. Its worker threads sit at 90-100% for the whole playback,
+	 * which is exactly what get_htask_ratio() looks for, but the old test
+	 * rejected them before it ever ran, so software video decode produced
+	 * no frequency margin at all. Samsung's own Codec2 HAL service sits in
+	 * the same group for the same reason.
+	 *
+	 * Accepting the root group does not let background work in:
+	 * ActivityManager always assigns app processes a cpuctl group, dex2oat
+	 * has its own, and the remaining root residents (vold, keystore2,
+	 * drmserver, the perfetto helpers) are idle or bursty and never reach
+	 * the heaviness threshold. Kernel threads are excluded so that reclaim
+	 * and compaction storms do not drive the frequency by themselves.
+	 */
+	if (grp == CGROUP_ROOT && !(p->flags & PF_KTHREAD))
+		return true;
+
+	return false;
 }
 
 /* get_htask_ratio - if this task is heavy task, return heaviness ratio */
