@@ -491,7 +491,12 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 	blk_queue_rq_timeout(mq->queue, 20 * HZ);
 
 	mmc_setup_queue(mq, card);
-	mq->queue->backing_dev_info->ra_pages = SZ_2M / PAGE_SIZE;
+	/*
+	 * 2MB of readahead pulls far more into page cache than a random app
+	 * read ever uses, and on a 4GB device that eviction pressure costs
+	 * more than the sequential gain. Keep it at 256KB.
+	 */
+	mq->queue->backing_dev_info->ra_pages = SZ_256K / PAGE_SIZE;
 	blk_queue_flag_clear(QUEUE_FLAG_IO_STAT, mq->queue);
 	return 0;
 
