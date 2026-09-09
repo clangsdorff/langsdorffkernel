@@ -188,7 +188,7 @@ static int tz_iwlog_kthread_handler(void *data)
 	while (!kthread_should_stop()) {
 #if defined(CONFIG_TZLOG_POLLING)
 		if (atomic_read(&nr_swd_cores)) {
-			wait_event_timeout(tz_iwlog_wq,
+			wait_event_idle_timeout(tz_iwlog_wq,
 					atomic_xchg(&tz_iwlog_request, TZ_IWLOG_WAIT) == TZ_IWLOG_BUSY ||
 					kthread_should_stop(),
 					msecs_to_jiffies(CONFIG_TZLOG_POLLING_PERIOD));
@@ -196,7 +196,7 @@ static int tz_iwlog_kthread_handler(void *data)
 			continue;
 		}
 #endif
-		wait_event(tz_iwlog_wq,
+		wait_event_idle(tz_iwlog_wq,
 				atomic_xchg(&tz_iwlog_request, TZ_IWLOG_WAIT) == TZ_IWLOG_BUSY ||
 				kthread_should_stop());
 		tz_iwlog_read_buffers();
