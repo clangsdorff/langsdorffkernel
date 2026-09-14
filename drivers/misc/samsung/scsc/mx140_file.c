@@ -611,7 +611,19 @@ int __mx140_request_firmware(struct scsc_mx *mx, char *path, const struct firmwa
 	}
 	scsc_mx_request_firmware_mutex_lock(mx);
 	scsc_mx_request_firmware_wake_lock(mx);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	ret = firmware_request_nowarn(firmp, path, dev);
+	if (ret && !strncmp(path, base_dir_request_fw, sizeof(base_dir_request_fw) - 1)) {
+		char legacy_path[MX140_FW_PATH_MAX_LENGTH];
+
+		scnprintf(legacy_path, sizeof(legacy_path), "%s%s",
+			base_dir_request_fw_legacy, path + sizeof(base_dir_request_fw) - 1);
+		SCSC_TAG_INFO(MX_FILE, "%s not found, trying %s\n", path, legacy_path);
+		ret = request_firmware(firmp, legacy_path, dev);
+	}
+#else
 	ret = request_firmware(firmp, path, dev);
+#endif
 	scsc_mx_request_firmware_wake_unlock(mx);
 	scsc_mx_request_firmware_mutex_unlock(mx);
 
