@@ -151,11 +151,7 @@ find . | cpio --quiet -o -H newc -R root:root | lz4 -9cl > ../ramdisk_dlkm.lz4
 cd ../ramdisk_platform
 find . | cpio --quiet -o -H newc -R root:root | lz4 -9cl > ../ramdisk_platform.lz4
 cd ..
-{
-    echo "buildtime_bootconfig=enable"
-    echo 'kernel.cmupmucal.margin_cpucl0 = "-6"'
-    echo 'kernel.cmupmucal.margin_cpucl1 = "-6"'
-} > bootconfig
+echo "buildtime_bootconfig=enable" > bootconfig
 
 $MKBOOTIMG --header_version 4 \
     --vendor_boot "$OUT_VENDORBOOTIMG" \
