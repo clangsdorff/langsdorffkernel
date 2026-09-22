@@ -57,7 +57,6 @@ fun SuperUserPager(
         onClearSearch = { onSearchTextChange("") },
         onToggleShowSystemApps = onToggleShowSystemApps,
         onToggleShowOnlyPrimaryUserApps = onToggleShowOnlyPrimaryUserApps,
-        onUpdateSortOption = { viewModel.updateSortOption(it) },
         onOpenProfile = onOpenProfile,
     )
 

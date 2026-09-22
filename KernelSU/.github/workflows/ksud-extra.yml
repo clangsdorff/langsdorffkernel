@@ -48,7 +48,6 @@ jobs:
       with:
         workspaces: userspace/ksud
         cache-targets: false
-        cache-bin: false
 
     - name: Install cross
       run: |

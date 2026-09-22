@@ -1,5 +1,6 @@
 package me.weishu.kernelsu.ui.screen.template
 
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -28,19 +29,20 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallExtendedFloatingActionButton
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -52,6 +54,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
@@ -62,7 +65,6 @@ import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.model.TemplateInfo
 import me.weishu.kernelsu.ui.component.material.SegmentedItem
 import me.weishu.kernelsu.ui.component.material.SegmentedListItem
-import me.weishu.kernelsu.ui.component.material.SnackBarHost
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 
 /**
@@ -70,13 +72,12 @@ import me.weishu.kernelsu.ui.component.statustag.StatusTag
  * @date 2023/10/20.
  */
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppProfileTemplateScreenMaterial(
     state: TemplateUiState,
     actions: TemplateActions,
-    snackBarHost: SnackbarHostState,
 ) {
-    val haptic = LocalHapticFeedback.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
@@ -117,7 +118,17 @@ fun AppProfileTemplateScreenMaterial(
         scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
     }
 
+    val scaleFraction = {
+        if (state.isRefreshing) 1f
+        else LinearOutSlowInEasing.transform(pullToRefreshState.distanceFraction).coerceIn(0f, 1f)
+    }
+
     Scaffold(
+        modifier = Modifier.pullToRefresh(
+            state = pullToRefreshState,
+            isRefreshing = state.isRefreshing,
+            onRefresh = { actions.onRefresh(false) },
+        ),
         topBar = {
             TopBar(
                 onBack = actions.onBack,
@@ -126,9 +137,8 @@ fun AppProfileTemplateScreenMaterial(
                 scrollBehavior = scrollBehavior
             )
         },
-        snackbarHost = { SnackBarHost(hostState = snackBarHost) },
         floatingActionButton = {
-            SmallExtendedFloatingActionButton(
+            ExtendedFloatingActionButton(
                 expanded = fabExpanded,
                 onClick = actions.onCreateTemplate,
                 icon = { Icon(Icons.Filled.Add, null) },
@@ -141,49 +151,34 @@ fun AppProfileTemplateScreenMaterial(
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)
     ) { innerPadding ->
-        PullToRefreshBox(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            isRefreshing = state.isRefreshing,
-            onRefresh = {
-                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
-                actions.onRefresh(true)
-            },
-            state = pullToRefreshState,
-            indicator = {
-                PullToRefreshDefaults.LoadingIndicator(
-                    modifier = Modifier.align(Alignment.TopCenter),
-                    isRefreshing = state.isRefreshing,
-                    state = pullToRefreshState,
-                )
-            },
-        ) {
-            val isLoading = state.templateList.isEmpty()
+        val isLoading = state.templateList.isEmpty()
 
-            if (isLoading && !state.isRefreshing) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (state.offline) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = stringResource(R.string.network_offline), color = MaterialTheme.colorScheme.outline)
-                            Spacer(Modifier.height(12.dp))
-                            Button(
-                                onClick = { actions.onRefresh(false) },
-                            ) {
-                                Text(stringResource(R.string.network_retry))
-                            }
+        if (isLoading && !state.isRefreshing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                if (state.offline) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = stringResource(R.string.network_offline), color = MaterialTheme.colorScheme.outline)
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = { actions.onRefresh(false) },
+                        ) {
+                            Text(stringResource(R.string.network_retry))
                         }
-                    } else {
-                        LoadingIndicator()
                     }
+                } else {
+                    LoadingIndicator()
                 }
-            } else {
-                val templateList = state.templateList
-                val navBars = WindowInsets.navigationBars.asPaddingValues()
-                val captionBar = WindowInsets.captionBar.asPaddingValues()
+            }
+        } else {
+            val templateList = state.templateList
+            val navBars = WindowInsets.navigationBars.asPaddingValues()
+            val captionBar = WindowInsets.captionBar.asPaddingValues()
+            Box(Modifier.padding(innerPadding)) {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -205,6 +200,16 @@ fun AppProfileTemplateScreenMaterial(
                             )
                         }
                     }
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer {
+                            scaleX = scaleFraction()
+                            scaleY = scaleFraction()
+                        }
+                ) {
+                    PullToRefreshDefaults.LoadingIndicator(state = pullToRefreshState, isRefreshing = state.isRefreshing)
                 }
             }
         }
@@ -263,6 +268,7 @@ private fun TemplateItem(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TopBar(
     onBack: () -> Unit,

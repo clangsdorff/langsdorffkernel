@@ -25,6 +25,8 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -47,13 +49,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.KernelVersion
-import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
 import me.weishu.kernelsu.ui.component.material.TonalCard
 import me.weishu.kernelsu.ui.component.rebootlistpopup.RebootListPopup
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomePagerMaterial(
     state: HomeUiState,
@@ -85,8 +87,7 @@ fun HomePagerMaterial(
             }
             if (state.showVersionMismatchWarning) {
                 WarningCard(
-                    stringResource(
-                        id = R.string.home_version_mismatch,
+                    stringResource(id = R.string.home_version_mismatch,
                         state.currentManagerVersionCode,
                         state.ksuVersion ?: 0
                     )
@@ -95,33 +96,13 @@ fun HomePagerMaterial(
             if (state.showGkiWarning) {
                 WarningCard(stringResource(id = R.string.home_gki_warning))
             }
-            if (state.showUAPIMisMatchWarning) {
+            if (state.showRequireKernelWarning) {
                 WarningCard(
-                    stringResource(
-                        id = R.string.uapi_mismatch,
-                        state.managerUAPIVersion,
-                        state.kernelUAPIVersion ?: 0,
+                    stringResource(id = R.string.require_kernel_version,
+                        state.ksuVersion ?: 0,
+                        me.weishu.kernelsu.Natives.MINIMAL_SUPPORTED_KERNEL
                     )
                 )
-            }
-            if (state.showRequireKernelWarning) {
-                if (state.currentManagerVersionCode < (state.ksuVersion ?: 0)) {
-                    WarningCard(
-                        stringResource(
-                            id = R.string.require_manager_version,
-                            state.currentManagerVersionCode,
-                            state.ksuVersion ?: 0,
-                        )
-                    )
-                } else {
-                    WarningCard(
-                        stringResource(
-                            id = R.string.require_kernel_version,
-                            state.ksuVersion ?: 0,
-                            Natives.MINIMAL_SUPPORTED_KERNEL
-                        )
-                    )
-                }
             }
             if (state.showRootWarning) {
                 WarningCard(stringResource(id = R.string.grant_root_failed))
@@ -170,6 +151,7 @@ private fun UpdateCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TopBar(
     scrollBehavior: TopAppBarScrollBehavior? = null
@@ -252,7 +234,7 @@ private fun StatusCard(
                             }
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = stringResource(R.string.home_working_version, "${state.ksuVersion}-${state.kernelUAPIVersion}"),
+                                text = stringResource(R.string.home_working_version, state.ksuVersion),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -446,11 +428,9 @@ private fun InfoCard(systemInfo: SystemInfo) {
                 )
             }
 
-            InfoCardItem(stringResource(R.string.home_manager_version), systemInfo.managerVersion)
-            Spacer(Modifier.height(16.dp))
             InfoCardItem(stringResource(R.string.home_kernel), systemInfo.kernelVersion)
             Spacer(Modifier.height(16.dp))
-            InfoCardItem(stringResource(R.string.home_device_model), systemInfo.deviceModel)
+            InfoCardItem(stringResource(R.string.home_manager_version), systemInfo.managerVersion)
             Spacer(Modifier.height(16.dp))
             InfoCardItem(stringResource(R.string.home_fingerprint), systemInfo.fingerprint)
             Spacer(Modifier.height(16.dp))
@@ -461,15 +441,6 @@ private fun InfoCard(systemInfo: SystemInfo) {
                 else -> stringResource(R.string.selinux_status_unknown)
             }
             InfoCardItem(stringResource(R.string.home_selinux_status), selinuxDisplay)
-            Spacer(Modifier.height(16.dp))
-            val seccompDisplay = when (systemInfo.seccompStatus) {
-                -1 -> stringResource(R.string.seccomp_status_not_supported)
-                0 -> stringResource(R.string.seccomp_status_disabled)
-                1 -> stringResource(R.string.seccomp_status_strict)
-                2 -> stringResource(R.string.seccomp_status_filter)
-                else -> stringResource(R.string.seccomp_status_unknown)
-            }
-            InfoCardItem(stringResource(R.string.home_seccomp_status), seccompDisplay)
         }
     }
 }
@@ -508,12 +479,10 @@ private fun StatusCardJailbreakPreview() {
 }
 
 private val previewSystemInfo = SystemInfo(
-    kernelVersion = "6.1.0-android14-0-g123456789000-ab12345678",
-    managerVersion = "3.0.0 (30000)",
-    deviceModel = "Google Pixel 6 Pro",
+    kernelVersion = "6.1.0-android14-0-g1234567",
+    managerVersion = "1.0.0 (10000)",
     fingerprint = "google/raven/raven:14/AP1A.240305.019:user/release-keys",
-    selinuxStatus = "Enforcing",
-    seccompStatus = 2
+    selinuxStatus = "Enforcing"
 )
 
 private val previewUriHandler = object : UriHandler {
@@ -604,7 +573,4 @@ private fun previewHomeScreenState(
     superuserCount = superuserCount,
     moduleCount = moduleCount,
     systemInfo = previewSystemInfo.copy(selinuxStatus = selinuxStatus),
-    kernelUAPIVersion = 1,
-    managerUAPIVersion = 1,
-    uapiMismatch = false
 )

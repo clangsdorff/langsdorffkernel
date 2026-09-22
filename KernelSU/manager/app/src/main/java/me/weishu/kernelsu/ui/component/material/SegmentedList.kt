@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
@@ -53,8 +54,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 val LocalListItemShapes = compositionLocalOf<ListItemShapes?> { null }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun defaultSegmentedColors(): ListItemColors = ListItemDefaults.segmentedColors().copy(
     containerColor = colorScheme.surfaceColorAtElevation(1.dp),
@@ -62,6 +65,7 @@ private fun defaultSegmentedColors(): ListItemColors = ListItemDefaults.segmente
     supportingContentColor = colorScheme.outline
 )
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun defaultSingleSegmentedShape(index: Int, count: Int): ListItemShapes {
     val base = ListItemDefaults.segmentedShapes(index, count)
@@ -72,6 +76,7 @@ private fun defaultSingleSegmentedShape(index: Int, count: Int): ListItemShapes 
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SegmentedColumn(
     modifier: Modifier = Modifier,
@@ -105,6 +110,7 @@ fun SegmentedColumn(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SegmentedItem(
     index: Int,
@@ -118,6 +124,7 @@ fun SegmentedItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SegmentedListItem(
     modifier: Modifier = Modifier,
@@ -149,6 +156,7 @@ fun SegmentedListItem(
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SegmentedListItem(
     checked: Boolean,
@@ -182,6 +190,7 @@ fun SegmentedListItem(
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SegmentedListItem(
     selected: Boolean,

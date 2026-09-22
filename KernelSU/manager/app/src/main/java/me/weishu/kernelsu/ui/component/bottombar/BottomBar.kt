@@ -12,14 +12,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.kyant.backdrop.Backdrop
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.ui.LocalUiMode
 import me.weishu.kernelsu.ui.UiMode
-import top.yukonga.miuix.kmp.blur.Backdrop
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import kotlin.math.abs
 
 class MainPagerState(
@@ -86,23 +87,25 @@ fun rememberMainPagerState(
 
 @Composable
 fun BottomBar(
-    blurBackdrop: LayerBackdrop?,
+    hazeState: HazeState,
+    hazeStyle: HazeStyle,
     backdrop: Backdrop,
     modifier: Modifier = Modifier,
 ) {
     when (LocalUiMode.current) {
-        UiMode.Miuix -> BottomBarMiuix(blurBackdrop, backdrop, modifier)
+        UiMode.Miuix -> BottomBarMiuix(hazeState, hazeStyle, backdrop, modifier)
         UiMode.Material -> BottomBarMaterial()
     }
 }
 
 @Composable
 fun SideRail(
-    blurBackdrop: LayerBackdrop?,
+    hazeState: HazeState,
+    hazeStyle: HazeStyle,
     modifier: Modifier = Modifier,
 ) {
     when (LocalUiMode.current) {
-        UiMode.Miuix -> NavigationRailMiuix(blurBackdrop, modifier)
+        UiMode.Miuix -> NavigationRailMiuix(hazeState, hazeStyle, modifier)
         UiMode.Material -> NavigationRailMaterial(modifier)
     }
 }

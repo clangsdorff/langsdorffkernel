@@ -21,14 +21,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.R
-import me.weishu.kernelsu.ui.component.markdown.MarkdownContent
+import me.weishu.kernelsu.ui.component.GithubMarkdown
+import me.weishu.kernelsu.ui.component.Markdown
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.theme.LocalDismissState
+import top.yukonga.miuix.kmp.extra.WindowDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowDialog
 
 @Composable
 fun LoadingDialogMiuix(showDialog: MutableState<Boolean>) {
@@ -75,11 +75,10 @@ fun ConfirmDialogMiuix(
         content = {
             Layout(
                 content = {
-                    val dismissState = LocalDismissState.current
                     visuals.content?.let { content ->
                         when {
-                            visuals.isMarkdown -> MarkdownContent(content = content, isMarkdown = true)
-                            visuals.isHtml -> MarkdownContent(content = content, isMarkdown = false)
+                            visuals.isMarkdown -> Markdown(content = content)
+                            visuals.isHtml -> GithubMarkdown(content = content)
                             else -> Text(text = content)
                         }
                     }
@@ -91,7 +90,7 @@ fun ConfirmDialogMiuix(
                             text = visuals.dismiss ?: stringResource(id = android.R.string.cancel),
                             onClick = {
                                 dismiss()
-                                dismissState?.invoke()
+                                showDialog.value = false
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -100,7 +99,7 @@ fun ConfirmDialogMiuix(
                             text = visuals.confirm ?: stringResource(id = android.R.string.ok),
                             onClick = {
                                 confirm()
-                                dismissState?.invoke()
+                                showDialog.value = false
                             },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.textButtonColorsPrimary()

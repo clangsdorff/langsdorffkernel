@@ -3,6 +3,7 @@ package me.weishu.kernelsu.ui.component.miuix
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,10 +39,9 @@ import kotlin.math.max
 @Composable
 fun EditText(
     title: String,
-    value: String,
-    onValueChange: (String) -> Unit = {},
-    modifier: Modifier = Modifier,
     summary: String? = null,
+    textValue: MutableState<String>,
+    onTextValueChange: (String) -> Unit = {},
     textHint: String = "",
     enabled: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
@@ -51,10 +52,14 @@ fun EditText(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val coroutineScope = rememberCoroutineScope()
+    val focused = interactionSource.collectIsFocusedAsState().value
     val focusRequester = remember { FocusRequester() }
+    if (focused) {
+        focusRequester.requestFocus()
+    }
 
     Box(
-        modifier = modifier
+        modifier = Modifier
             .clickable(
                 indication = null,
                 interactionSource = null
@@ -85,9 +90,9 @@ fun EditText(
                     )
                 }
                 BasicTextField(
-                    value = value,
+                    value = textValue.value,
                     onValueChange = {
-                        onValueChange(it)
+                        onTextValueChange(it)
                     },
                     modifier = Modifier
                         .focusRequester(focusRequester)
@@ -115,7 +120,7 @@ fun EditText(
                                 contentAlignment = Alignment.CenterEnd
                             ) {
                                 Text(
-                                    text = if (value.isEmpty()) textHint else "",
+                                    text = if (textValue.value.isEmpty()) textHint else "",
                                     color = rightActionColor.color(enabled),
                                     textAlign = TextAlign.End,
                                     softWrap = false,

@@ -4,16 +4,9 @@ import androidx.compose.runtime.Immutable
 import me.weishu.kernelsu.data.model.RepoModule
 import me.weishu.kernelsu.ui.component.SearchStatus
 
-enum class RepoSort {
-    UPDATED,
-    CREATED,
-    NAME,
-    STARS,
-}
-
 data class ModuleRepoUiState(
     val isRefreshing: Boolean = false,
-    val sortOrder: RepoSort = RepoSort.UPDATED,
+    val sortByName: Boolean = false,
     val offline: Boolean = false,
     val modules: List<RepoModule> = emptyList(),
     val searchStatus: SearchStatus = SearchStatus(""),
@@ -28,7 +21,7 @@ data class ModuleRepoActions(
     val onSearchTextChange: (String) -> Unit,
     val onClearSearch: () -> Unit,
     val onSearchStatusChange: (SearchStatus) -> Unit,
-    val onSetSortOrder: (RepoSort) -> Unit,
+    val onToggleSortByName: () -> Unit,
     val onOpenRepoDetail: (RepoModule) -> Unit,
 )
 

@@ -3,7 +3,6 @@ package me.weishu.kernelsu.ui.webui
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,6 +12,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -37,7 +37,6 @@ class WebUIActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         window.isNavigationBarContrastEnforced = false
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
         super.onCreate(savedInstanceState)
 
@@ -71,6 +70,7 @@ class WebUIActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MainContent(activity: ComponentActivity, onFinish: () -> Unit) {
     val moduleId = remember { activity.intent.getStringExtra("id") }
@@ -113,6 +113,7 @@ private fun MainContent(activity: ComponentActivity, onFinish: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun LoadingContent() {
     when (LocalUiMode.current) {

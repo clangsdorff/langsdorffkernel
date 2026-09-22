@@ -1,4 +1,4 @@
-package me.weishu.kernelsu.ui.component.miuix.modifier
+package me.weishu.kernelsu.ui.modifier
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown

@@ -29,7 +29,7 @@ import me.weishu.kernelsu.ui.util.AppIconCache
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 
-private data class IconKey(val uid: Int, val packageName: String, val sourceDir: String?)
+private data class IconKey(val uid: Int, val packageName: String)
 
 @Composable
 fun AppIconImage(
@@ -41,26 +41,22 @@ fun AppIconImage(
     val context = LocalContext.current
     val targetSizePx = with(density) { 48.dp.roundToPx() }
 
-    val iconKey = IconKey(applicationInfo.uid, applicationInfo.packageName, applicationInfo.sourceDir)
+    val iconKey = IconKey(applicationInfo.uid, applicationInfo.packageName)
+    val cachedBitmap = remember(iconKey) {
+        AppIconCache.getFromCache(applicationInfo)
+    }
 
     Box(modifier = modifier) {
-        val initiallyCached = remember(iconKey) {
-            AppIconCache.getCached(applicationInfo, targetSizePx) != null
-        }
+        var appBitmap by remember(iconKey) { mutableStateOf(cachedBitmap) }
 
-        var appBitmap by remember(iconKey) {
-            mutableStateOf(AppIconCache.getCached(applicationInfo, targetSizePx))
-        }
-
-        if (!initiallyCached) {
+        if (cachedBitmap == null) {
             LaunchedEffect(iconKey) {
                 appBitmap = AppIconCache.loadIcon(context, applicationInfo, targetSizePx)
             }
         }
 
-        val icon = appBitmap
-        if (initiallyCached && icon != null) {
-            val imageBitmap = remember(icon) { icon.asImageBitmap() }
+        if (cachedBitmap != null) {
+            val imageBitmap = remember(appBitmap) { appBitmap!!.asImageBitmap() }
             Image(
                 bitmap = imageBitmap,
                 contentDescription = label,
@@ -68,19 +64,19 @@ fun AppIconImage(
             )
         } else {
             Crossfade(
-                targetState = icon,
+                targetState = appBitmap,
                 animationSpec = tween(durationMillis = 150),
                 label = "IconFade"
-            ) { bitmap ->
-                if (bitmap != null) {
-                    val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
+            ) { icon ->
+                if (icon == null) {
+                    PlaceHolderBox(Modifier.fillMaxSize())
+                } else {
+                    val imageBitmap = remember(icon) { icon.asImageBitmap() }
                     Image(
                         bitmap = imageBitmap,
                         contentDescription = label,
                         modifier = Modifier.fillMaxSize()
                     )
-                } else {
-                    PlaceHolderBox(Modifier.fillMaxSize())
                 }
             }
         }

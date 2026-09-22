@@ -1,14 +1,19 @@
 package me.weishu.kernelsu.ui.component
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import me.weishu.kernelsu.ui.util.defaultHazeEffect
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 
 @Stable
@@ -37,18 +42,29 @@ data class SearchStatus(
     fun TopAppBarAnim(
         modifier: Modifier = Modifier,
         visible: Boolean = shouldCollapsed(),
-        backgroundColor: Color = colorScheme.surface,
+        hazeState: HazeState? = null,
+        hazeStyle: HazeStyle? = null,
         content: @Composable () -> Unit
     ) {
+        val topAppBarAlpha = animateFloatAsState(
+            if (visible) 1f else 0f,
+            animationSpec = tween(if (visible) 550 else 0, easing = FastOutSlowInEasing),
+        )
         Box(modifier = modifier) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(backgroundColor)
+                    .then(
+                        if (hazeState != null && hazeStyle != null) {
+                            Modifier.defaultHazeEffect(hazeState, hazeStyle)
+                        } else {
+                            Modifier.background(colorScheme.surface)
+                        }
+                    )
             )
             Box(
                 modifier = Modifier
-                    .graphicsLayer { alpha = if (visible) 1f else 0f }
+                    .graphicsLayer { alpha = topAppBarAlpha.value }
             ) { content() }
         }
     }

@@ -1,5 +1,6 @@
 package me.weishu.kernelsu.ui.screen.sulog
 
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,18 +35,19 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.MaterialTheme.typography
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -53,10 +55,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -64,8 +67,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import me.weishu.kernelsu.R
-import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.material.SearchAppBar
 import me.weishu.kernelsu.ui.component.material.SegmentedColumn
 import me.weishu.kernelsu.ui.component.material.SegmentedDropdownItem
@@ -76,6 +79,7 @@ import me.weishu.kernelsu.ui.component.statustag.StatusTag
 import me.weishu.kernelsu.ui.util.SulogEntry
 import me.weishu.kernelsu.ui.util.SulogEventFilter
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SulogScreenMaterial(
     state: SulogScreenState,
@@ -85,6 +89,7 @@ fun SulogScreenMaterial(
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
     val searchListState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val fileSelector = buildSulogFileSelector(state.files, state.selectedFilePath)
     var selectedEntry by remember { mutableStateOf<SulogEntry?>(null) }
@@ -95,6 +100,11 @@ fun SulogScreenMaterial(
         localSearchText = state.searchText
     }
 
+    val scaleFraction = {
+        if (state.isLoading || state.isRefreshing) 1f
+        else LinearOutSlowInEasing.transform(pullToRefreshState.distanceFraction).coerceIn(0f, 1f)
+    }
+
     if (selectedEntry != null) {
         SulogDetailDialog(
             entry = selectedEntry!!,
@@ -102,17 +112,22 @@ fun SulogScreenMaterial(
         )
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-
     Scaffold(
+        modifier = Modifier
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .pullToRefresh(
+                state = pullToRefreshState,
+                isRefreshing = state.isLoading || state.isRefreshing,
+                onRefresh = actions.onRefresh,
+            ),
         topBar = {
             SearchAppBar(
-                snackbarHostState = snackbarHostState,
                 title = { Text(stringResource(R.string.settings_sulog)) },
                 searchText = localSearchText,
                 onSearchTextChange = {
                     localSearchText = it
                     actions.onSearchTextChange(it)
+                    scope.launch { searchListState.scrollToItem(0) }
                 },
                 onClearClick = {
                     localSearchText = ""
@@ -159,11 +174,6 @@ fun SulogScreenMaterial(
                 },
                 scrollBehavior = scrollBehavior,
                 searchContent = { bottomPadding, _ ->
-                    val latestVisibleEntries = rememberUpdatedState(state.visibleEntries)
-                    ScrollToTopOnChange(
-                        searchListState,
-                        state.searchText,
-                    ) { latestVisibleEntries.value }
                     LazyColumn(
                         state = searchListState,
                         modifier = Modifier
@@ -187,35 +197,14 @@ fun SulogScreenMaterial(
         },
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        PullToRefreshBox(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            isRefreshing = state.isLoading || state.isRefreshing,
-            onRefresh = {
-                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
-                actions.onRefresh()
-            },
-            state = pullToRefreshState,
-            indicator = {
-                PullToRefreshDefaults.LoadingIndicator(
-                    modifier = Modifier.align(Alignment.TopCenter),
-                    isRefreshing = state.isLoading || state.isRefreshing,
-                    state = pullToRefreshState,
-                )
-            },
+                .padding(innerPadding)
         ) {
-            val latestEntries = rememberUpdatedState(state.visibleEntries)
-            ScrollToTopOnChange(
-                listState,
-                state.selectedFilters,
-                state.selectedFilePath,
-            ) { latestEntries.value }
             LazyColumn(
                 state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 item {
@@ -258,10 +247,26 @@ fun SulogScreenMaterial(
                     )
                 }
             }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = scaleFraction()
+                        scaleY = scaleFraction()
+                    },
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                PullToRefreshDefaults.LoadingIndicator(
+                    state = pullToRefreshState,
+                    isRefreshing = state.isLoading || state.isRefreshing,
+                )
+            }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun LazyListScope.sulogEntriesSection(
     entries: List<SulogEntry>,
     errorMessage: String?,
@@ -277,7 +282,7 @@ private fun LazyListScope.sulogEntriesSection(
         }
 
         else -> {
-            itemsIndexed(entries, key = { index, entry -> "$index-${entry.key}" }) { index, entry ->
+            itemsIndexed(entries, key = { _, entry -> entry.key }) { index, entry ->
                 SegmentedItem(index = index, count = entries.size) {
                     SegmentedListItem(
                         modifier = if (index < entries.lastIndex) {
@@ -310,7 +315,7 @@ private fun LazyListScope.sulogEntriesSection(
                                         colorScheme.secondary to colorScheme.onSecondary,
                                         colorScheme.tertiary to colorScheme.onTertiary,
                                     )
-                                    sulogEntrySummaryTags(entry).forEachIndexed { index, tag ->
+                                    entry.summaryTags.forEachIndexed { index, tag ->
                                         val (bg, fg) = colors.getOrElse(index) { colors.last() }
                                         StatusTag(label = tag, backgroundColor = bg, contentColor = fg)
                                     }
@@ -318,7 +323,7 @@ private fun LazyListScope.sulogEntriesSection(
                             }
                         },
                         trailingContent = {
-                            sulogEntryStatus(entry)?.let { Text(it) }
+                            entry.status?.let { Text(it) }
                         },
                     )
                 }
@@ -405,7 +410,7 @@ private fun WarningCard(
         ) {
             Text(
                 text = text,
-                style = typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
             action?.invoke()
@@ -427,7 +432,7 @@ private fun SulogDetailDialog(
             ) {
                 SelectionContainer {
                     Text(
-                        text = sulogEntryDetailText(entry),
+                        text = entry.detailText,
                         fontFamily = FontFamily.Monospace,
                     )
                 }

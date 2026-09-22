@@ -1,4 +1,4 @@
-package me.weishu.kernelsu.ui.component.markdown
+package me.weishu.kernelsu.ui.component
 
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
@@ -17,6 +17,7 @@ import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -26,6 +27,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import me.weishu.kernelsu.ksuApp
@@ -39,13 +41,8 @@ import me.weishu.kernelsu.ui.util.relativeLuminance
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okio.IOException
-import org.commonmark.ext.autolink.AutolinkExtension
-import org.commonmark.ext.gfm.strikethrough.StrikethroughExtension
-import org.commonmark.ext.gfm.tables.TablesExtension
-import org.commonmark.ext.task.list.items.TaskListItemsExtension
-import org.commonmark.parser.Parser
-import org.commonmark.renderer.html.HtmlRenderer
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
@@ -54,11 +51,10 @@ import kotlin.math.abs
 private val SEMICOLON_SPLIT = ";\\s*".toRegex()
 private val EQUALS_SPLIT = "=\\s*".toRegex()
 
-@SuppressLint("JavascriptInterface", "SetJavaScriptEnabled", "WrongConstant")
+@SuppressLint("JavascriptInterface", "SetJavaScriptEnabled", "ClickableViewAccessibility")
 @Composable
 fun GithubMarkdown(
     content: String,
-    isMarkdown: Boolean = false,
     onLoadingChange: (Boolean) -> Unit = {},
     containerColor: androidx.compose.ui.graphics.Color? = null,
 ) {
@@ -67,54 +63,44 @@ fun GithubMarkdown(
     val fontScale = density.fontScale
     val pageScale = density.density / systemDensity
     val newTextZoom = (90 * pageScale * fontScale).toInt()
-    val scrollInterface = remember { MarkdownScrollInterface() }
 
+    val scrollInterface = remember { MarkdownScrollInterface() }
     val isDark = isInDarkTheme()
     val dir = if (LocalLayoutDirection.current == LayoutDirection.Rtl) "rtl" else "ltr"
 
     val colors = getMarkdownColors(containerColor)
-    val bgCode = colors.bgCode
-    val bgRowAlt = colors.bgRowAlt
-    val fgDefault = colors.fgDefault
+    val bgDefault = colors.bgDefault
+    val bgMuted = colors.bgMuted
+    val bgNeutralMuted = colors.bgNeutralMuted
+    val bgAttentionMuted = colors.bgAttentionMuted
     val fgLink = colors.fgLink
 
-    val template = remember(isDark) {
-        val name = if (isDark) "webview/template_dark.html" else "webview/template.html"
-        ksuApp.assets.open(name).bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
-    }
-    val extensions = remember {
-        listOf(
-            TablesExtension.create(),
-            StrikethroughExtension.builder().requireTwoTildes(true).build(),
-            AutolinkExtension.create(),
-            TaskListItemsExtension.create(),
-        )
-    }
-    val parser = remember(extensions) { Parser.builder().extensions(extensions).build() }
-    val renderer = remember(extensions) { HtmlRenderer.builder().extensions(extensions).build() }
-    val rendered = remember(content, isMarkdown) {
-        if (isMarkdown) renderer.render(parser.parse(content)) else content
-    }
-    val body = """
-        <style>
-         :root {
-             --background: ${Color.TRANSPARENT};
-             --pre-background: $bgCode;
-             --code-background: $bgCode;
-             --tr-alt-background: $bgRowAlt;
-             --thead-background: $bgRowAlt;
-             --textPrimary: $fgDefault;
-             --link: $fgLink;
-         }
-          html, body { margin: 0; padding: 0 }
-          img, video { max-width: 100%; height: auto; }
-          .markdown-body { padding: 16px; }
-        </style>
-        $rendered
+    val cssHref = "https://appassets.androidplatform.net/assets/github-markdown.css"
+    val html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset='utf-8'/>
+          <meta name='viewport' content='width=device-width, initial-scale=1'/>
+          <link rel="stylesheet" href="$cssHref" />
+          <style>
+            html, body { margin:0; padding:0; }
+            img, video { max-width:100%; height:auto; }
+            .markdown-body {
+              padding: 16px;
+              --bgColor-default: $bgDefault;
+              --bgColor-muted: $bgMuted;
+              --bgColor-neutral-muted: $bgNeutralMuted;
+              --bgColor-attention-muted: $bgAttentionMuted;
+              --fgColor-accent: $fgLink;
+            }
+          </style>
+        </head>
+        <body dir='${dir}'>
+          <article class='markdown-body' data-theme='${if (isDark) "dark" else "light"}'>${content}</article>
+        </body>
+        </html>
     """.trimIndent()
-    val html = template
-        .replace("@dir@", dir)
-        .replace("@body@", body)
 
     AndroidView(
         factory = { context ->
@@ -246,17 +232,18 @@ fun GithubMarkdown(
                                     .build()
                             )
                             return try {
-                                val reply = call.execute()
+                                val reply: Response = call.execute()
                                 val header = reply.header("content-type", "text/plain; charset=utf-8")
                                 val contentTypes = header?.split(SEMICOLON_SPLIT) ?: emptyList()
                                 val mimeType = contentTypes.firstOrNull() ?: "image/*"
                                 val charset = contentTypes.getOrNull(1)?.split(EQUALS_SPLIT)?.getOrNull(1) ?: "utf-8"
-                                WebResourceResponse(mimeType, charset, reply.body.byteStream())
+                                val bytes = reply.body.bytes()
+                                WebResourceResponse(mimeType, charset, ByteArrayInputStream(bytes))
                             } catch (e: IOException) {
                                 Log.e("GithubMarkdown", "Resource load failed", e)
                                 WebResourceResponse(
                                     "text/html", "utf-8",
-                                    ByteArrayInputStream(Log.getStackTraceString(e).toByteArray())
+                                    ByteArrayInputStream(ByteArray(0))
                                 )
                             }
                         }
@@ -305,6 +292,10 @@ fun GithubMarkdown(
                             return false
                         }
                     })
+                    loadDataWithBaseURL(
+                        "https://appassets.androidplatform.net", html,
+                        "text/html", StandardCharsets.UTF_8.name(), null
+                    )
                 } catch (e: Throwable) {
                     Log.e("GithubMarkdown", "WebView setup failed", e)
                 }
@@ -315,14 +306,11 @@ fun GithubMarkdown(
         update = { frameLayout ->
             val webView = frameLayout.getChildAt(0) as? WebView ?: return@AndroidView
             webView.settings.textZoom = newTextZoom
-            if (webView.tag != html) {
-                webView.tag = html
-                onLoadingChange(true)
-                webView.loadDataWithBaseURL(
-                    "https://appassets.androidplatform.net", html,
-                    "text/html", StandardCharsets.UTF_8.name(), null
-                )
-            }
+            onLoadingChange(true)
+            webView.loadDataWithBaseURL(
+                "https://appassets.androidplatform.net", html,
+                "text/html", StandardCharsets.UTF_8.name(), null
+            )
         },
         onRelease = { frameLayout ->
             val webView = frameLayout.getChildAt(0) as? WebView
@@ -354,9 +342,10 @@ class MarkdownScrollInterface {
 }
 
 private data class MarkdownColors(
-    val bgCode: String,
-    val bgRowAlt: String,
-    val fgDefault: String,
+    val bgDefault: String,
+    val bgMuted: String,
+    val bgNeutralMuted: String,
+    val bgAttentionMuted: String,
     val fgLink: String
 )
 
@@ -366,11 +355,14 @@ private fun getMarkdownColors(containerColor: androidx.compose.ui.graphics.Color
 
     return when (uiMode) {
         UiMode.Material -> {
+            val bgArgb = containerColor?.toArgb() ?: MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp).toArgb()
+
             MarkdownColors(
-                bgCode = cssColorFromArgb(MaterialTheme.colorScheme.surfaceContainerHigh.toArgb()),
-                bgRowAlt = cssColorFromArgb(MaterialTheme.colorScheme.surfaceContainerLow.toArgb()),
-                fgDefault = cssColorFromArgb(MaterialTheme.colorScheme.onSurface.toArgb()),
-                fgLink = cssColorFromArgb(MaterialTheme.colorScheme.primary.toArgb())
+                cssColorFromArgb(bgArgb),
+                cssColorFromArgb(MaterialTheme.colorScheme.surfaceContainerHigh.toArgb()),
+                cssColorFromArgb(MaterialTheme.colorScheme.surfaceDim.toArgb()),
+                cssColorFromArgb(MaterialTheme.colorScheme.surfaceBright.toArgb()),
+                cssColorFromArgb(MaterialTheme.colorScheme.primary.toArgb())
             )
         }
 
@@ -378,20 +370,18 @@ private fun getMarkdownColors(containerColor: androidx.compose.ui.graphics.Color
             val bgArgb = containerColor?.toArgb() ?: MiuixTheme.colorScheme.surfaceContainer.toArgb()
             val bgLuminance = relativeLuminance(bgArgb)
 
-            fun makeVariant(delta: Float, ratio: Double): Int {
+            fun makeVariant(delta: Float): Int {
                 val candidate = adjustLightnessArgb(bgArgb, delta)
                 val madeLighter = delta > 0f
-                return ensureVisibleByMix(bgArgb, candidate, ratio, madeLighter)
+                return ensureVisibleByMix(bgArgb, candidate, 1.15, madeLighter)
             }
 
-            val codeDelta = if (bgLuminance > 0.6) -0.05f else 0.05f
-            val rowAltDelta = if (bgLuminance > 0.6) -0.02f else 0.02f
-
             MarkdownColors(
-                bgCode = cssColorFromArgb(makeVariant(codeDelta, 1.1)),
-                bgRowAlt = cssColorFromArgb(makeVariant(rowAltDelta, 1.05)),
-                fgDefault = cssColorFromArgb(MiuixTheme.colorScheme.onSurface.toArgb()),
-                fgLink = cssColorFromArgb(MiuixTheme.colorScheme.primary.toArgb())
+                cssColorFromArgb(bgArgb),
+                cssColorFromArgb(makeVariant(if (bgLuminance > 0.6) -0.06f else 0.06f)),
+                cssColorFromArgb(makeVariant(if (bgLuminance > 0.6) -0.12f else 0.12f)),
+                cssColorFromArgb(makeVariant(-0.12f)),
+                cssColorFromArgb(MiuixTheme.colorScheme.primary.toArgb())
             )
         }
     }

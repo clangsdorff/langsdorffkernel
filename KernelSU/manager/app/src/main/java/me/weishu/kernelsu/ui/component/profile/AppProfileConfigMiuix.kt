@@ -12,7 +12,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.miuix.EditText
-import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.extra.SuperSwitch
 
 @Composable
 fun AppProfileConfigMiuix(
@@ -26,13 +26,13 @@ fun AppProfileConfigMiuix(
         if (!fixedName) {
             EditText(
                 title = stringResource(R.string.profile_name),
-                value = profile.name,
-                onValueChange = { onProfileChange(profile.copy(name = it)) },
+                textValue = remember { mutableStateOf(profile.name) },
+                onTextValueChange = { onProfileChange(profile.copy(name = it)) },
                 enabled = enabled,
             )
         }
 
-        SwitchPreference(
+        SuperSwitch(
             title = stringResource(R.string.profile_umount_modules),
             summary = stringResource(R.string.profile_umount_modules_summary),
             checked = if (enabled) {

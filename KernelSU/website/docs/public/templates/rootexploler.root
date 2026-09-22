@@ -44,8 +44,5 @@
             "name": "Gestore file root",
             "description": "Gestore file con permessi root."
         } 
-    },
-    "flags":[
-        "NO_NEW_PRIVS"
-    ]
+    }
 }

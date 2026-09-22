@@ -21,9 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.repository.ModuleRepositoryImpl
-import me.weishu.kernelsu.ui.util.AppIconCache
 import me.weishu.kernelsu.ui.util.createRootShell
-import me.weishu.kernelsu.ui.util.withMainUserUid
 import me.weishu.kernelsu.ui.viewmodel.SuperUserViewModel
 import java.io.File
 
@@ -109,29 +107,11 @@ internal suspend fun prepareWebView(
                     if (url.scheme.equals("ksu", ignoreCase = true) && url.host.equals("icon", ignoreCase = true)) {
                         val packageName = url.path?.substring(1)
                         if (!packageName.isNullOrEmpty()) {
-                            val appInfo = SuperUserViewModel.apps
-                                .find { it.packageName == packageName }
-                                ?.packageInfo?.applicationInfo
-                            if (appInfo != null) {
-                                val icon = AppIconCache.loadIconSync(activity, appInfo.withMainUserUid(activity), 512)
+                            val icon = AppIconUtil.loadAppIconSync(activity, packageName, 512)
+                            if (icon != null) {
                                 val stream = java.io.ByteArrayOutputStream()
                                 icon.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
-                                return WebResourceResponse(
-                                    "image/png", null, 200, "OK",
-                                    mapOf("Access-Control-Allow-Origin" to "*"),
-                                    java.io.ByteArrayInputStream(stream.toByteArray())
-                                )
-                            } else {
-                                val errorMsg = "No such package"
-                                val errorStream = java.io.ByteArrayInputStream(errorMsg.toByteArray(Charsets.UTF_8))
-                                return WebResourceResponse(
-                                    "text/plain",
-                                    "utf-8",
-                                    404,
-                                    "Not Found",
-                                    mapOf("Access-Control-Allow-Origin" to "*"),
-                                    errorStream
-                                )
+                                return WebResourceResponse("image/png", null, java.io.ByteArrayInputStream(stream.toByteArray()))
                             }
                         }
                     }

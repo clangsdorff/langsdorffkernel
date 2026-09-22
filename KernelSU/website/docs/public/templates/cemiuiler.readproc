@@ -43,8 +43,5 @@
             "name": "Cemiuiler",
             "description": "Concedi a Cemiuiler le autorizzazioni minime per riavviare correttamente l'applicazione."
         } 
-    },
-    "flags":[
-        "NO_NEW_PRIVS"
-    ]
+    }
 }

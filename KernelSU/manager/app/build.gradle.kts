@@ -9,7 +9,6 @@ plugins {
 }
 
 val androidCompileSdkVersion: Int by rootProject.extra
-val androidCompileSdkVersionMinor: Int by rootProject.extra
 val androidCompileNdkVersion: String by rootProject.extra
 val androidBuildToolsVersion: String by rootProject.extra
 val androidMinSdkVersion: Int by rootProject.extra
@@ -88,7 +87,6 @@ android {
         }
         jniLibs {
             useLegacyPackaging = true
-            excludes += "lib/*/libandroidx.graphics.path.so"
         }
     }
 
@@ -106,14 +104,10 @@ android {
     androidResources {
         generateLocaleConfig = true
     }
-    compileSdk {
-        version =
-            release(androidCompileSdkVersion) {
-                minorApiLevel = androidCompileSdkVersionMinor
-            }
-    }
-    buildToolsVersion = androidBuildToolsVersion
+
+    compileSdk = androidCompileSdkVersion
     ndkVersion = androidCompileNdkVersion
+    buildToolsVersion = androidBuildToolsVersion
 
     defaultConfig {
         minSdk = androidMinSdkVersion
@@ -149,7 +143,7 @@ android {
 
 androidComponents {
     onVariants(selector().withBuildType("release")) {
-        it.packaging.resources.excludes.addAll(listOf("META-INF/**", "kotlin/**", "**.bin"))
+        it.packaging.resources.excludes.addAll(listOf("META-INF/**", "kotlin/**", "org/**", "**.bin"))
     }
 }
 
@@ -187,11 +181,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.core)
 
-    implementation(libs.commonmark)
-    implementation(libs.commonmark.ext.gfm.tables)
-    implementation(libs.commonmark.ext.gfm.strikethrough)
-    implementation(libs.commonmark.ext.autolink)
-    implementation(libs.commonmark.ext.task.list.items)
+    implementation(libs.markwon)
 
     implementation(libs.androidx.webkit)
 
@@ -199,25 +189,18 @@ dependencies {
 
     implementation(libs.hiddenapibypass)
 
-    implementation(libs.miuix.ui)
+    implementation(libs.miuix)
     implementation(libs.miuix.icons)
     implementation(libs.miuix.navigation3.ui)
-    implementation(libs.miuix.preference)
-    implementation(libs.miuix.blur)
 
     implementation(platform(libs.okhttp.bom))
     implementation(libs.okhttp)
 
+    implementation(libs.backdrop)
+    implementation(libs.capsule)
+    implementation(libs.haze)
+
     implementation(libs.material.kolor)
 
     implementation(libs.appiconloader)
-}
-
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.addAll(
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
-        )
-    }
 }

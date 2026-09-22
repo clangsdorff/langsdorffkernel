@@ -166,8 +166,7 @@ class SulogViewModel(
             prefs.edit {
                 putStringSet(
                     PREF_SULOG_FILTERS,
-                    selectedFilters.map { it.name }.toSet()
-                )
+                    selectedFilters.map { it.name }.toSet())
             }
             currentState.copy(
                 selectedFilters = selectedFilters,

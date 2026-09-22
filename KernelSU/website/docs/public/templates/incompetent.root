@@ -37,8 +37,5 @@
             "name": "Root incompetente",
             "description": "Un utente root senza nessuna capacità."
         } 
-    },
-    "flags":[
-        "NO_NEW_PRIVS"
-    ]
+    }
 }

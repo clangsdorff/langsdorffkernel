@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -64,6 +65,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -74,16 +78,15 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallExtendedFloatingActionButton
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTopAppBarState
@@ -94,7 +97,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -103,6 +105,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.FixedScale
@@ -121,34 +124,31 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.model.Module
 import me.weishu.kernelsu.data.model.ModuleUpdateInfo
-import me.weishu.kernelsu.ui.component.ObserveAsEvents
-import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
 import me.weishu.kernelsu.ui.component.dialog.rememberLoadingDialog
 import me.weishu.kernelsu.ui.component.material.ExpressiveSwitch
 import me.weishu.kernelsu.ui.component.material.SearchAppBar
-import me.weishu.kernelsu.ui.component.material.SnackBarHost
 import me.weishu.kernelsu.ui.component.material.TonalCard
 import me.weishu.kernelsu.ui.component.rebootlistpopup.RebootListPopup
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
+import me.weishu.kernelsu.ui.util.LocalSnackbarHost
 import me.weishu.kernelsu.ui.util.reboot
 
 @SuppressLint("StringFormatInvalid")
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ModulePagerMaterial(
     uiState: ModuleUiState,
     confirmDialogState: ModuleConfirmDialogState?,
-    moduleEvent: Flow<ModuleEffect>,
+    effect: ModuleEffect?,
     actions: ModuleActions,
     bottomInnerPadding: Dp,
 ) {
-    val snackBarHost = remember { SnackbarHostState() }
+    val snackBarHost = LocalSnackbarHost.current
     val haptic = LocalHapticFeedback.current
 
     val context = LocalContext.current
@@ -158,9 +158,13 @@ fun ModulePagerMaterial(
 
     val pullToRefreshState = rememberPullToRefreshState()
 
+    val scaleFraction = {
+        if (uiState.isRefreshing) 1f
+        else LinearOutSlowInEasing.transform(pullToRefreshState.distanceFraction).coerceIn(0f, 1f)
+    }
+
     val listState = rememberLazyListState()
     val searchListState = rememberLazyListState()
-    val refreshTick = remember { mutableStateOf(0) }
     val threshold = with(LocalDensity.current) { 100.dp.toPx() }
     val fabExpanded by remember {
         var lastIndex = 0
@@ -236,39 +240,47 @@ fun ModulePagerMaterial(
         }
     }
 
-    val scope = rememberCoroutineScope()
-    val snackbarJob = remember { mutableStateOf<Job?>(null) }
-    ObserveAsEvents(moduleEvent) { event ->
-        when (event) {
+    LaunchedEffect(effect) {
+        when (effect) {
             is ModuleEffect.Toast -> {
-                Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                actions.onConsumeEffect()
             }
 
             is ModuleEffect.SnackBar -> {
-                // Cancel the previous reboot snackbar so a new one replaces it instead of queueing
-                snackbarJob.value?.cancel()
-                snackbarJob.value = scope.launch {
-                    val result = snackBarHost.showSnackbar(
-                        message = event.message,
-                        actionLabel = resource.getString(R.string.reboot),
-                        duration = SnackbarDuration.Long
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        reboot()
-                    }
+                snackBarHost.currentSnackbarData?.dismiss()
+                val result = snackBarHost.showSnackbar(
+                    message = effect.message,
+                    actionLabel = resource.getString(R.string.reboot),
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    reboot()
                 }
+                actions.onConsumeEffect()
             }
+
+            null -> Unit
         }
     }
 
     Scaffold(
+        modifier = Modifier
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .pullToRefresh(
+                state = pullToRefreshState,
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = {
+                    haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                    actions.onRefresh()
+                },
+            ),
         topBar = {
             SearchAppBar(
                 title = { Text(stringResource(R.string.module)) },
                 searchText = uiState.searchStatus.searchText,
                 onSearchTextChange = actions.onSearchTextChange,
                 onClearClick = actions.onClearSearch,
-                snackbarHostState = snackBarHost,
                 navigationIcon = {
                     IconButton(
                         onClick = { actions.onOpenRepo() }
@@ -315,11 +327,9 @@ fun ModulePagerMaterial(
                 },
                 scrollBehavior = scrollBehavior,
                 searchContent = { bottomPadding, closeSearch ->
-                    val latestSearchResults = rememberUpdatedState(uiState.searchResults)
-                    ScrollToTopOnChange(
-                        searchListState,
-                        uiState.searchStatus.searchText,
-                    ) { latestSearchResults.value }
+                    LaunchedEffect(uiState.searchStatus.searchText) {
+                        searchListState.scrollToItem(0)
+                    }
                     ModuleList(
                         bottomInnerPadding = bottomPadding,
                         modifier = Modifier.fillMaxSize(),
@@ -363,7 +373,7 @@ fun ModulePagerMaterial(
                     actions.onOpenFlash(uris)
                 }
 
-                SmallExtendedFloatingActionButton(
+                ExtendedFloatingActionButton(
                     modifier = Modifier.padding(bottom = bottomInnerPadding),
                     expanded = fabExpanded,
                     onClick = {
@@ -380,57 +390,23 @@ fun ModulePagerMaterial(
             }
         },
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
-        snackbarHost = {
-            SnackBarHost(hostState = snackBarHost, modifier = Modifier.let {
-                if (!uiState.installButtonVisible) it.padding(
-                    bottom =
-                        bottomInnerPadding
-                ) else it
-            })
-        }
+        snackbarHost = { SnackbarHost(hostState = snackBarHost) }
     ) { innerPadding ->
-        PullToRefreshBox(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            isRefreshing = uiState.isRefreshing,
-            onRefresh = {
-                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
-                actions.onRefresh()
-                refreshTick.value++
-            },
-            state = pullToRefreshState,
-            indicator = {
-                PullToRefreshDefaults.LoadingIndicator(
-                    modifier = Modifier.align(Alignment.TopCenter),
-                    isRefreshing = uiState.isRefreshing,
-                    state = pullToRefreshState,
+        if (uiState.magiskInstalled) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.module_magisk_conflict),
+                    textAlign = TextAlign.Center,
                 )
-            },
-        ) {
-            if (uiState.magiskInstalled) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        stringResource(R.string.module_magisk_conflict),
-                        textAlign = TextAlign.Center,
-                    )
-                }
-                return@PullToRefreshBox
             }
-            val latestModuleList = rememberUpdatedState(uiState.moduleList)
-            val latestRefreshing = rememberUpdatedState(uiState.isRefreshing)
-            ScrollToTopOnChange(
-                listState,
-                uiState.sortEnabledFirst,
-                uiState.sortActionFirst,
-                refreshTick.value,
-                isBusy = { latestRefreshing.value },
-            ) { latestModuleList.value }
+            return@Scaffold
+        }
+        Box(modifier = Modifier.padding(innerPadding)) {
             ModuleList(
                 bottomInnerPadding = bottomInnerPadding,
                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -445,6 +421,19 @@ fun ModulePagerMaterial(
                 },
                 onModuleAddShortcut = { module, type -> onModuleAddShortcut(module, type) },
             )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .graphicsLayer {
+                        scaleX = scaleFraction()
+                        scaleY = scaleFraction()
+                    }
+            ) {
+                PullToRefreshDefaults.LoadingIndicator(
+                    state = pullToRefreshState,
+                    isRefreshing = uiState.isRefreshing,
+                )
+            }
         }
     }
 
@@ -464,6 +453,7 @@ fun ModulePagerMaterial(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ModuleList(
     bottomInnerPadding: Dp,
@@ -521,6 +511,7 @@ private fun ModuleList(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ModuleShortcutSheet(
     show: Boolean,
@@ -642,7 +633,7 @@ private fun ModuleShortcutSheet(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ModuleItem(
     module: Module,

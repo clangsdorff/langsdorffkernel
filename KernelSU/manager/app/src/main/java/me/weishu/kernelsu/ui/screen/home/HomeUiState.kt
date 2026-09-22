@@ -8,14 +8,11 @@ import me.weishu.kernelsu.ui.util.module.LatestVersionInfo
 data class HomeUiState(
     val kernelVersion: KernelVersion,
     val ksuVersion: Int?,
-    val managerUAPIVersion: Int,
-    val kernelUAPIVersion: Int?,
     val lkmMode: Boolean?,
     val isManager: Boolean,
     val isManagerPrBuild: Boolean,
     val isKernelPrBuild: Boolean,
     val requiresNewKernel: Boolean,
-    val uapiMismatch: Boolean,
     val isRootAvailable: Boolean,
     val isSafeMode: Boolean,
     val isLateLoadMode: Boolean,
@@ -37,9 +34,6 @@ data class HomeUiState(
 
     val showRequireKernelWarning: Boolean
         get() = isManager && requiresNewKernel
-
-    val showUAPIMisMatchWarning: Boolean
-        get() = isManager && showRequireKernelWarning && uapiMismatch
 
     val showRootWarning: Boolean
         get() = ksuVersion != null && !isRootAvailable

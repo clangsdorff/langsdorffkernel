@@ -1,5 +1,6 @@
 package me.weishu.kernelsu.ui.screen.executemoduleaction
 
+import android.content.Context
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
@@ -27,7 +28,6 @@ fun ExecuteModuleActionEffect(
     logContent: StringBuilder,
     fromShortcut: Boolean,
     onTextUpdate: (String) -> Unit,
-    onComplete: () -> Unit = {},
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
@@ -81,21 +81,23 @@ fun ExecuteModuleActionEffect(
                 actionResult = it
             }
         }
-        if (actionResult && fromShortcut) {
-            Toast.makeText(
-                context,
-                moduleActionSuccess,
-                Toast.LENGTH_SHORT
-            ).show()
+        if (actionResult) {
+            if (fromShortcut) {
+                Toast.makeText(
+                    context,
+                    moduleActionSuccess,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            onExit()
         }
-        onComplete()
     }
 }
 
 fun saveLog(
     logContent: StringBuilder,
-    scope: CoroutineScope,
-    showMessage: (String) -> Unit
+    context: Context,
+    scope: CoroutineScope
 ): () -> Unit {
     return {
         scope.launch {
@@ -106,7 +108,7 @@ fun saveLog(
                 "KernelSU_module_action_log_${date}.log"
             )
             file.writeText(logContent.toString())
-            showMessage("Log saved to ${file.absolutePath}")
+            Toast.makeText(context, "Log saved to ${file.absolutePath}", Toast.LENGTH_SHORT).show()
         }
     }
 }

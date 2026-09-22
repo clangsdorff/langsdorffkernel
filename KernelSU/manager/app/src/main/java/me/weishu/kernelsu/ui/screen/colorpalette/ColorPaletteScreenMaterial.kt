@@ -41,17 +41,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.MenuOpen
 import androidx.compose.material.icons.filled.Brightness1
 import androidx.compose.material.icons.filled.Brightness3
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Brightness7
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.rounded.Adb
 import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DesignServices
 import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -97,6 +99,7 @@ import me.weishu.kernelsu.ui.component.material.TonalCard
 import me.weishu.kernelsu.ui.theme.ColorMode
 import me.weishu.kernelsu.ui.theme.keyColorOptions
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ColorPaletteScreenMaterial(
     state: ColorPaletteUiState,
@@ -272,7 +275,7 @@ fun ColorPaletteScreenMaterial(
                         content = listOf(
                             {
                                 SegmentedSwitchItem(
-                                    icon = Icons.AutoMirrored.Rounded.MenuOpen,
+                                    icon = Icons.Rounded.Adb,
                                     title = stringResource(id = R.string.settings_enable_predictive_back),
                                     summary = stringResource(id = R.string.settings_enable_predictive_back_summary),
                                     checked = uiState.enablePredictiveBack,
@@ -338,6 +341,7 @@ fun ColorPaletteScreenMaterial(
 }
 
 @SuppressLint("ConfigurationScreenWidthHeight")
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ThemePreviewCard(
     keyColor: Int,

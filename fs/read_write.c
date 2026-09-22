@@ -648,14 +648,14 @@ ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count)
 }
 
 #ifdef CONFIG_KSU_SUSFS
-extern struct static_key_true ksu_is_init_rc_hook_enabled;
+extern bool ksu_init_rc_hook __read_mostly;
 extern __attribute__((cold)) void ksu_handle_sys_read(unsigned int fd);
 #endif
 
 SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 {
 #ifdef CONFIG_KSU_SUSFS
-	if (static_branch_unlikely(&ksu_is_init_rc_hook_enabled))
+	if (unlikely(ksu_init_rc_hook))
 		ksu_handle_sys_read(fd);
 #endif
 

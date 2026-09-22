@@ -1,8 +1,10 @@
 package me.weishu.kernelsu.ui.util
 
 import android.net.Uri
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import me.weishu.kernelsu.ksuApp
 import me.weishu.kernelsu.ui.util.module.LatestVersionInfo
 import okhttp3.Request
@@ -11,7 +13,7 @@ import okhttp3.Request
  * @author weishu
  * @date 2023/6/22.
  */
-suspend fun download(
+fun download(
     url: String,
     fileName: String,
     onDownloaded: (Uri) -> Unit = {},
@@ -27,13 +29,17 @@ suspend fun download(
         onCompleted = onDownloaded,
     )
 
-    DownloadManager.downloads
-        .onEach { map -> map[downloadId]?.let { onProgress(it.progress) } }
-        .first { map ->
-            val status = map[downloadId]?.status
-            status == DownloadManager.Status.COMPLETED ||
-                status == DownloadManager.Status.FAILED
+    CoroutineScope(Dispatchers.Main).launch {
+        DownloadManager.downloads.collect { map ->
+            val state = map[downloadId] ?: return@collect
+            onProgress(state.progress)
+            if (state.status == DownloadManager.Status.COMPLETED ||
+                state.status == DownloadManager.Status.FAILED
+            ) {
+                cancel()
+            }
         }
+    }
 }
 
 fun checkNewVersion(): LatestVersionInfo {

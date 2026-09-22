@@ -51,8 +51,5 @@
             "name": "Modello Root Ufficiale di HyperCeiler",
             "description": "Autorizzazioni minime per garantire il corretto funzionamento delle funzioni principali di HyperCeiler."
         }
-    },
-    "flags":[
-        "NO_NEW_PRIVS"
-    ]
+    }
 }
