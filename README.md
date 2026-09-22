@@ -44,8 +44,8 @@
 - r51p0 driver: [xxmustafacooTR](https://github.com/xxmustafacooTR/)
 
 # Download
-- Download (version)**e** for Enforcing
-- Download (version)**p** for Permissive
+- Download (version)**e** for Enforcing, **en** for no overclock & root variant
+- Download (version)**p** for Permissive, **pn** for no overclock & root variant
 - Releases: [Here](https://github.com/clangsdorff/langsdorffkernel/releases)
 
 **Device & Notes**
