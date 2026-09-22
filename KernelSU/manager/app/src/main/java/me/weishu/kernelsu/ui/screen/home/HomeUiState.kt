@@ -22,6 +22,8 @@ data class HomeUiState(
     val checkUpdateEnabled: Boolean,
     val latestVersionInfo: LatestVersionInfo,
     val currentManagerVersionCode: Long,
+    val superuserCount: Int,
+    val moduleCount: Int,
     val systemInfo: SystemInfo,
 ) {
     val isSELinuxPermissive: Boolean
@@ -58,6 +60,8 @@ data class HomeUiState(
 @Immutable
 data class HomeActions(
     val onInstallClick: () -> Unit,
+    val onSuperuserClick: () -> Unit,
+    val onModuleClick: () -> Unit,
     val onOpenUrl: (String) -> Unit,
     val onJailbreakClick: () -> Unit = {},
 )

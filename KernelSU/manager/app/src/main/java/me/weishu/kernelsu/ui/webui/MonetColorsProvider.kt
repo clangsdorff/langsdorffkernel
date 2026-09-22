@@ -1,6 +1,5 @@
 package me.weishu.kernelsu.ui.webui
 
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
@@ -25,10 +24,10 @@ object MonetColorsProvider {
     }
 
     @Composable
-    fun UpdateCss(materialColorScheme: ColorScheme? = null) {
+    fun UpdateCss() {
         when (LocalUiMode.current) {
             UiMode.Miuix -> UpdateCssMiuix()
-            UiMode.Material -> UpdateCssMaterial(materialColorScheme ?: MaterialTheme.colorScheme)
+            UiMode.Material -> UpdateCssMaterial()
         }
     }
 
@@ -90,7 +89,9 @@ object MonetColorsProvider {
     }
 
     @Composable
-    private fun UpdateCssMaterial(colorScheme: ColorScheme) {
+    private fun UpdateCssMaterial() {
+        val colorScheme = MaterialTheme.colorScheme
+
         LaunchedEffect(colorScheme) {
             val monetColors = mapOf(
                 "primary" to colorScheme.primary.toCssValue(),

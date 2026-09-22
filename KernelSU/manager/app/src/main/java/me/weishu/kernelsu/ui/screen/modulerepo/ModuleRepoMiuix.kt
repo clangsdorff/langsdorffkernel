@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -76,7 +77,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.ListPopupDefaults
-import me.weishu.kernelsu.ui.component.PagerNavigationSpringSpec
 import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.SearchStatus
 import me.weishu.kernelsu.ui.component.dialog.ConfirmDialogHandle
@@ -103,7 +103,6 @@ import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.PullToRefresh
-import top.yukonga.miuix.kmp.basic.RefreshState
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.ScrollBehavior
 import top.yukonga.miuix.kmp.basic.SmallTitle
@@ -354,13 +353,13 @@ fun ModuleRepoScreenMiuix(
         searchStatus.SearchBox {
             val pullToRefreshState = rememberPullToRefreshState()
             val lazyListState = rememberLazyListState()
-            val refreshTick = remember { mutableIntStateOf(0) }
+            val refreshTick = remember { mutableStateOf(0) }
             val latestModules = rememberUpdatedState(state.modules)
             val latestRefreshing = rememberUpdatedState(state.isRefreshing)
             ScrollToTopOnChange(
                 lazyListState,
                 state.sortOrder,
-                refreshTick.intValue,
+                refreshTick.value,
                 isBusy = { latestRefreshing.value },
             ) { latestModules.value }
             val refreshTexts = listOf(
@@ -374,7 +373,7 @@ fun ModuleRepoScreenMiuix(
                 pullToRefreshState = pullToRefreshState,
                 onRefresh = {
                     actions.onRefresh()
-                    refreshTick.intValue++
+                    refreshTick.value++
                 },
                 refreshTexts = refreshTexts,
                 contentPadding = PaddingValues(
@@ -410,7 +409,7 @@ fun ModuleRepoScreenMiuix(
                                     onClick = actions.onRefresh,
                                 )
                             }
-                        } else if (pullToRefreshState.refreshState == RefreshState.Idle) {
+                        } else {
                             InfiniteProgressIndicator()
                         }
                     }
@@ -1091,10 +1090,7 @@ fun ModuleRepoDetailScreenMiuix(
                             selectedTabIndex = pagerState.currentPage,
                             onTabSelected = { index ->
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(
-                                        page = index,
-                                        animationSpec = PagerNavigationSpringSpec,
-                                    )
+                                    pagerState.animateScrollToPage(page = index, animationSpec = tween(easing = EaseInOut))
                                 }
                             },
                             colors = TabRowDefaults.tabRowColors(
@@ -1112,7 +1108,6 @@ fun ModuleRepoDetailScreenMiuix(
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
-            overscrollEffect = null,
         ) { page ->
             val innerPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding(),

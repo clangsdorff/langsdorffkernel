@@ -1,6 +1,7 @@
 package me.weishu.kernelsu.ui.screen.template
 
 import android.content.ClipData
+import android.widget.Toast
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +23,6 @@ import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.util.isNetworkAvailable
 import me.weishu.kernelsu.ui.viewmodel.TemplateViewModel
-import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
 
 @Composable
 fun AppProfileTemplateScreen() {
@@ -35,7 +35,6 @@ fun AppProfileTemplateScreen() {
     val scope = rememberCoroutineScope()
     val requestKey = "template_edit"
     val snackBarHost = remember { SnackbarHostState() }
-    val miuixSnackbarHost = remember { MiuixSnackbarHostState() }
 
     LaunchedEffect(Unit) {
         if (screenState.templateList.isEmpty()) {
@@ -63,7 +62,7 @@ fun AppProfileTemplateScreen() {
             if (uiMode == UiMode.Material) {
                 snackBarHost.showSnackbar(message)
             } else {
-                miuixSnackbarHost.showSnackbar(message)
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -138,7 +137,6 @@ fun AppProfileTemplateScreen() {
         UiMode.Miuix -> AppProfileTemplateScreenMiuix(
             state = uiState,
             actions = actions,
-            snackBarHost = miuixSnackbarHost,
         )
 
         UiMode.Material -> AppProfileTemplateScreenMaterial(

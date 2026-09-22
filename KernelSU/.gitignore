@@ -8,4 +8,3 @@ AGENTS.md
 __pycache__
 /dist
 /repack-config.json
-/userspace/ksud/.lkm_image_bootstrap.o

@@ -14,12 +14,11 @@ data class SettingsUiState(
     val miuixMonet: Boolean = false,
     val keyColor: Int = 0,
     val colorStyle: String = PaletteStyle.TonalSpot.name,
-    val colorSpec: String = ColorSpec.SpecVersion.SPEC_2025.name,
+    val colorSpec: String = ColorSpec.SpecVersion.Default.name,
     val enablePredictiveBack: Boolean = false,
     val enableBlur: Boolean = true,
     val enableFloatingBottomBar: Boolean = false,
     val enableFloatingBottomBarBlur: Boolean = false,
-    val enableNavigationBadge: Boolean = true,
     val pageScale: Float = 1.0f,
     val enableWebDebugging: Boolean = false,
 
@@ -31,10 +30,6 @@ data class SettingsUiState(
     // Kernel Umount
     val kernelUmountStatus: String = "",
     val isKernelUmountEnabled: Boolean = false,
-
-    // WebView Zygote Umount
-    val webViewZygoteUmountStatus: String = "",
-    val isWebViewZygoteUmountEnabled: Boolean = false,
 
     // SELinux Hide
     val selinuxHideStatus: String = "",
@@ -55,10 +50,7 @@ data class SettingsUiState(
     val isLateLoadMode: Boolean = false,
 
     // Auto Jailbreak
-    val autoJailbreak: Boolean = false,
-
-    // Soft Reboot
-    val useSoftReboot: Boolean = false
+    val autoJailbreak: Boolean = false
 )
 
 @Immutable
@@ -70,13 +62,11 @@ data class SettingsScreenActions(
     val onOpenProfileTemplate: () -> Unit,
     val onSetSuCompatMode: (Int) -> Unit,
     val onSetKernelUmountEnabled: (Boolean) -> Unit,
-    val onSetWebViewZygoteUmountEnabled: (Boolean) -> Unit,
     val onSetSelinuxHideEnabled: (Boolean) -> Unit,
     val onSetSulogEnabled: (Boolean) -> Unit,
     val onSetAdbRootEnabled: (Boolean) -> Unit,
     val onSetDefaultUmountModules: (Boolean) -> Unit,
     val onSetEnableWebDebugging: (Boolean) -> Unit,
     val onSetAutoJailbreak: (Boolean) -> Unit,
-    val onSetUseSoftReboot: (Boolean) -> Unit,
     val onOpenAbout: () -> Unit,
 )

@@ -17,33 +17,16 @@ import androidx.core.net.toUri
 import com.topjohnwu.superuser.io.SuFile
 import com.topjohnwu.superuser.io.SuFileInputStream
 import me.weishu.kernelsu.R
-import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
 import me.weishu.kernelsu.ui.MainActivity
-import me.weishu.kernelsu.ui.screen.module.ShortcutType
 import me.weishu.kernelsu.ui.util.getRootShell
 import me.weishu.kernelsu.ui.util.isColorOS
 import me.weishu.kernelsu.ui.util.isHyperOS
 import me.weishu.kernelsu.ui.util.isMiui
+import me.weishu.kernelsu.ui.webui.WebUIActivity
 
 object Shortcut {
 
     private const val TAG = "ModuleShortcut"
-    const val SCHEME_KSU = "ksu"
-    const val HOST_ACTION = "action"
-    const val HOST_WEBUI = "webui"
-
-    fun buildShortcutUri(moduleId: String, type: ShortcutType): Uri {
-        val host = when (type) {
-            ShortcutType.Action -> HOST_ACTION
-            ShortcutType.WebUI -> HOST_WEBUI
-        }
-        return Uri.Builder()
-            .scheme(SCHEME_KSU)
-            .authority(host)
-            .appendQueryParameter("id", moduleId)
-            .appendQueryParameter("token", SettingsRepositoryImpl().intentToken)
-            .build()
-    }
 
     fun createModuleActionShortcut(
         context: Context,
@@ -54,7 +37,8 @@ object Shortcut {
         val shortcutId = "module_action_$moduleId"
         val shortcutIntent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
-            data = buildShortcutUri(moduleId, ShortcutType.Action)
+            putExtra("shortcut_type", "module_action")
+            putExtra("module_id", moduleId)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
         createModuleShortcut(
@@ -75,9 +59,11 @@ object Shortcut {
         iconUri: String?
     ) {
         val shortcutId = "module_webui_$moduleId"
-        val shortcutIntent = Intent(context, MainActivity::class.java).apply {
+        val shortcutIntent = Intent(context, WebUIActivity::class.java).apply {
             action = Intent.ACTION_VIEW
-            data = buildShortcutUri(moduleId, ShortcutType.WebUI)
+            data = "kernelsu://webui/$moduleId".toUri()
+            putExtra("id", moduleId)
+            putExtra("from_webui_shortcut", true)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
         createModuleShortcut(

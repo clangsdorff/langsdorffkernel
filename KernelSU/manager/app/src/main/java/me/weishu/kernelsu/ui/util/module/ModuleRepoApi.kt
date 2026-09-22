@@ -116,7 +116,11 @@ fun fetchModuleDetail(moduleId: String): ModuleDetail? {
                         var adl = a.optString("downloadUrl", "")
                         adl = stripTicks(adl)
                         val asz = a.optLong("size", 0L)
-                        val dcnt = a.optInt("downloadCount", 0)
+                        val dcnt = when (val dcAny = a.opt("downloadCount")) {
+                            is Number -> dcAny.toInt()
+                            is String -> dcAny.toIntOrNull() ?: 0
+                            else -> 0
+                        }
                         if (aname.isEmpty() || adl.isEmpty()) null else ReleaseAssetInfo(aname, adl, asz, dcnt)
                     }
                     ReleaseInfo(

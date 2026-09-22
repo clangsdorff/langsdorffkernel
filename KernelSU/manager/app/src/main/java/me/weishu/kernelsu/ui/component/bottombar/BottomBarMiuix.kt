@@ -31,8 +31,6 @@ import me.weishu.kernelsu.ui.theme.LocalEnableFloatingBottomBar
 import me.weishu.kernelsu.ui.theme.LocalEnableFloatingBottomBarBlur
 import me.weishu.kernelsu.ui.util.BlurredBar
 import me.weishu.kernelsu.ui.util.rootAvailable
-import top.yukonga.miuix.kmp.basic.Badge
-import top.yukonga.miuix.kmp.basic.BadgedBox
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
@@ -46,7 +44,6 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun BottomBarMiuix(
     blurBackdrop: LayerBackdrop?,
     backdrop: Backdrop,
-    navigationBadge: NavigationBadgeState,
     modifier: Modifier,
 ) {
     val isManager = Natives.isManager
@@ -77,8 +74,7 @@ fun BottomBarMiuix(
                             selected = mainState.selectedPage == index,
                             onClick = {
                                 mainState.animateToPage(index)
-                            },
-                            badge = navigationBadgeFor(index, navigationBadge),
+                            }
                         )
                     }
                 }
@@ -106,24 +102,16 @@ fun BottomBarMiuix(
                     },
                     modifier = Modifier.defaultMinSize(minWidth = 76.dp)
                 ) {
-                    // Icon and label take LocalContentColor so the FloatingBottomBar backdrop copy
-                    // can recolor them to the accent tone inside the indicator pill.
-                    val badge = navigationBadgeFor(index, navigationBadge, floating = true)
-                    val icon: @Composable () -> Unit = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                        )
-                    }
-                    if (badge != null) {
-                        BadgedBox(badge = { badge() }) { icon() }
-                    } else {
-                        icon()
-                    }
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = item.label,
+                        tint = MiuixTheme.colorScheme.onSurface
+                    )
                     Text(
                         text = item.label,
                         fontSize = 11.sp,
                         lineHeight = 14.sp,
+                        color = MiuixTheme.colorScheme.onSurface,
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Visible
@@ -142,32 +130,4 @@ enum class BottomBarDestination(
     SuperUser(R.string.superuser, Icons.Rounded.Security),
     Module(R.string.module, Icons.Rounded.Extension),
     Setting(R.string.settings, Icons.Rounded.Settings)
-}
-
-internal fun navigationBadgeFor(
-    index: Int,
-    state: NavigationBadgeState,
-    floating: Boolean = false,
-): (@Composable () -> Unit)? {
-    val badge = badgeFor(index, state) ?: return null
-    return when (badge.tone) {
-        BadgeTone.Alert -> {
-            {
-                Badge {
-                    Text(badge.count.toString())
-                }
-            }
-        }
-
-        BadgeTone.Accent -> {
-            {
-                Badge(
-                    containerColor = if (floating) MiuixTheme.colorScheme.primaryContainer else MiuixTheme.colorScheme.primary,
-                    contentColor = if (floating) MiuixTheme.colorScheme.onPrimaryContainer else MiuixTheme.colorScheme.onPrimary,
-                ) {
-                    Text(badge.count.toString())
-                }
-            }
-        }
-    }
 }

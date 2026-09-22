@@ -74,9 +74,6 @@ KernelSU 模組是一個放置於 `/data/adb/modules` 且滿足下列結構的�
 |   ├── uninstall.sh        <--- 這個腳本將會在 KernelSU 移除模組時執行
 │   ├── system.prop         <--- 這個檔案中指定的屬性將會在系統啟動時透過 resetprop 變更
 │   ├── sepolicy.rule       <--- 這個檔案中的 SELinux 原則將會在系統開機時載入
-│   ├── initrc/             <--- 此目錄下的 .rc 檔案將在啟動時注入 init.rc
-│   │   ├── myservice.rc
-│   │   └── ...
 │   │
 │   │      *** 自動產生的目錄，不要手動建立或修改！ ***
 │   │
@@ -189,80 +186,6 @@ KernelSU 的 systemless 機制透過核心的 overlayfs 實作，而 Magisk 目�
 
 如果您的模組需要一些額外 sepolicy 修補，請將這些原則新增至這個檔案中。這個檔案的每一行都將被視為一個原則陳述。
 
-### initrc 注入 {#initrc-injection}
-
-KernelSU 提供了一種將自訂 Android Init RC 指令注入系統 `init.rc` 的機制。這使得模組可以在不修改系統分區的情況下註冊自訂的 Android 服務、設定屬性觸發器或執行其他 Init 語言操作。
-
-在啟動過程中，KernelSU 的核心模組透過 hook `read()` 和 `fstat()` 系統調用，在 Android init 進程讀取 `/system/etc/init/hw/init.rc` 時，將自訂 RC 內容透明地附加到文件末尾。init 進程會像處理原始 init.rc 內容一樣解析這些注入的指令。
-
-在使用者空間側，ksud 會將所有已啟用模組的 `.rc` 檔案合併到一個 `modules.rc` 檔案中，存放在 `/metadata` 分區上。每當模組狀態發生變化（安裝、啟用、停用、解除安裝等）時，這個檔案都會被自動重新產生。
-
-#### 模組 initrc 檔案
-
-在模組目錄中建立一個 `initrc/` 子目錄，將 `.rc` 檔案放置其中：
-
-```txt
-/data/adb/modules/<MODID>/
-├── initrc/
-│   ├── myservice.rc
-│   └── another.rc
-└── ...
-```
-
-::: tip
-- 檔案必須以 `.rc` 為副檔名。
-- 只要模組處於啟用狀態，`initrc/` 目錄下的所有 `.rc` 檔案都會被包含（無需設定可執行權限）。
-- 處理的先後順序為：同一目錄內的檔案按**檔案名稱字母順序**排列；模組之間按**模組 ID 字母順序**排列。
-:::
-
-#### 通用 initrc 檔案
-
-除了模組層級的 RC 檔案外，您還可以將 `.rc` 檔案放置在全域目錄中：
-
-```txt
-/data/adb/initrc.d/
-├── myservice.rc
-└── another.rc
-```
-
-::: warning 全域 initrc 檔案需要可執行權限
-與模組 `initrc/` 目錄不同，`/data/adb/initrc.d/` 中的檔案**必須設定可執行權限**才會被包含。不具有可執行權限的 `.rc` 檔案會被靜默跳過。
-:::
-
-全域 `initrc.d/` 檔案在所有模組 RC 檔案之前被處理。
-
-#### 範例
-
-以下是一個註冊自訂 Android 服務的 `.rc` 檔案範例：
-
-```rc
-service myservice /data/adb/modules/mymodule/bin/myservice
-    user root
-    group root
-    disabled
-    seclabel u:r:ksu:s0
-
-on property:sys.boot_completed=1
-    start myservice
-```
-
-此檔案放置在 `/data/adb/modules/mymodule/initrc/myservice.rc`，將在系統啟動時註冊一個名為 `myservice` 的服務，並在 `sys.boot_completed=1` 時啟動它。
-
-#### 手動重新整理
-
-您可以透過以下指令手動觸發 `modules.rc` 重新產生（變更將在下次啟動時生效）：
-
-```sh
-ksud initrc refresh
-```
-
-::: tip
-- initrc 注入發生在啟動極早期（init 讀取 init.rc 時），**早於** post-fs-data 和所有模組腳本的執行。
-- 注入的 RC 內容被 init 當作原始 init.rc 的一部分處理，支援所有 Android Init 語言語法（服務定義、觸發器、屬性設定等）。
-- 在 **late-load 模式**下，initrc 注入**不可用**，因為系統調用 hook 在該模式下不會被安裝。
-- 可以在 ksud 修補映像檔的時候傳入參數 `--no-custom-rc` 停用模組 RC 注入。
-:::
-
 ## 模組安裝程式 {#module-installer}
 
 KernelSU 的模組安裝程式就是一個可以透過 KernelSU 管理員應用程式刷新的 Zip 檔案，這個 Zip 檔案的格式如下：
@@ -302,9 +225,6 @@ KernelSU 模組不支援在 Recovery 中安裝！！
 - `ARCH` (string): 裝置的 CPU 架構，有這幾種：`arm`, `arm64`, `x86`, or `x64`
 - `IS64BIT` (bool): 是否為 64 位元裝置
 - `API` (int): 目前裝置的 Android API 版本 (例如 Android 6.0 上為 `23`)
-- `KSU_UAPI_VER` (int): KernelSU 使用者空間 (ksud) 的 UAPI 版本號 (例如 `2`)。當核心驅動發生破壞性更改時此版本號會遞增，模組可據此判斷相容性。
-- `KSU_RUNTIME_MODE` (string): KernelSU 目前的執行模式。可能的值為 `built-in`（即 GKI 模式，編譯進核心）、`lkm`（開機時作為核心模組載入）或 `late-load`（開機後作為核心模組載入）。
-- `KSU_LATE_LOAD` (int?): 如果 KernelSU 是在開機後延遲載入的，此變數的值為 `1`，否則不設定此變數。
 
 ::: warning 警告
 `MAGISK_VER_CODE` 在 KernelSU 永遠為 `25200`，`MAGISK_VER` 則為 `v25.2`，請不要透過這兩個變數來判斷是否為 KernelSU！
@@ -383,7 +303,6 @@ load kernel:
 mount /dev, /dev/pts, /proc, /sys, etc.
 property-init -> read default props
 read init.rc
-  *initrc injection: Kernel hook appends KernelSU core RC and module modules.rc to init.rc
 ...
 early-init -> init -> late_init
 early-fs
@@ -448,7 +367,6 @@ start user apps (autostart)
 | 行為 | 標準啟動 | Late-load 模式 |
 |------|:---:|:---:|
 | 核心模組由 init (PID 1) 載入 | 是 | 否（啟動後載入） |
-| initrc 注入（模組 `.rc` 檔案注入 init.rc） | 是 | 不可用 |
 | ksud 的 kprobe 鉤子 (execve/read/fstat/input) | 是 | 跳過 |
 | 安全模式偵測（音量鍵） | 是 | 始終停用 |
 | 啟動日誌擷取 (logcat/dmesg) | 是 | 跳過 |

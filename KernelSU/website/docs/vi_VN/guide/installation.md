@@ -60,10 +60,17 @@ Có một số phương pháp cài đặt KernelSU, mỗi phương pháp phù h�
 
 Since version [0.9.0](https://github.com/tiann/KernelSU/releases/tag/v0.9.0), KernelSU supports two running modes on GKI devices:
 
-1. `LKM`: Load the **Loadable Kernel Module** (LKM) into the device kernel without replacing the original kernel.
-2. `GKI`: Replace the original kernel of the device with the **Generic Kernel Image** (GKI) provided by KernelSU.
+1. `GKI`: Replace the original kernel of the device with the **Generic Kernel Image** (GKI) provided by KernelSU.
+2. `LKM`: Load the **Loadable Kernel Module** (LKM) into the device kernel without replacing the original kernel.
 
 These two modes are suitable for different scenarios, and you can choose the one according to your needs.
+
+### GKI mode {#gki-mode}
+
+In GKI mode, the original kernel of the device will be replaced with the generic kernel image provided by KernelSU. The advantages of GKI mode are:
+
+1. Strong universality, suitable for most devices. For example, Samsung has enabled KNOX devices, and LKM mode cannot work. There are also some niche modified devices that can only use GKI mode.
+2. Can be used without relying on official firmware, and there is no need to wait for official firmware updates, as long as the KMI is consistent, it can be used.
 
 ### LKM mode {#lkm-mode}
 
@@ -74,12 +81,9 @@ In LKM mode, the original kernel of the device won't be replaced, but the loadab
 3. Suitable for some special scenarios. For example, LKM can also be loaded with temporary root permissions. Since it doesn't need to replace the boot partition, it won't trigger AVB and won't cause the device to be bricked.
 4. LKM can be temporarily uninstalled. If you want to temporarily disable root access, you can uninstall LKM. This process doesn't require flashing partitions, or even rebooting the device. If you want to enable root again, just reboot the device.
 
-### GKI mode {#gki-mode}
-
-In GKI mode, the original kernel of the device will be replaced with the generic kernel image provided by KernelSU. The advantages of GKI mode are:
-
-1. Strong universality, suitable for most devices. For example, Samsung has enabled KNOX devices, and LKM mode cannot work. There are also some niche modified devices that can only use GKI mode.
-2. Can be used without relying on official firmware, and there is no need to wait for official firmware updates, as long as the KMI is consistent, it can be used.
+::: tip COEXISTENCE OF TWO MODES
+After opening the manager, you can see the current mode of the device on the homepage. Note that the priority of GKI mode is higher than that of LKM. For example, if you use GKI kernel to replace the original kernel, and use LKM to patch the GKI kernel, the LKM will be ignored, and the device will always run in GKI mode.
+:::
 
 ### Which one to choose? {#which-one}
 
@@ -105,46 +109,36 @@ Open the manager, click the installation icon in the upper right corner, and sev
 2. Direct install. If your device is already rooted, you can choose this option. The manager will automatically get your device information, and then automatically patch the official firmware, and flash it automatically. You can consider using `fastboot boot` KernelSU's GKI kernel to get temporary root and install the manager, and then use this option. This is also the main way to upgrade KernelSU.
 3. Install to inactive slot. If your device supports A/B partition, you can choose this option. The manager will automatically patch the official firmware and install it to another partition. This method is suitable for devices after OTA, you can directly install it to the inactive slot after OTA.
 
-:::tip Sao lưu boot image gốc
-Sử dụng tùy chọn "Cài đặt trực tiếp (Khuyến nghị)" trong trình quản lý có thể tự động sao lưu boot image gốc (hoặc init_boot) để tạm thời khôi phục trong các bản cập nhật OTA gia tăng. Lưu ý rằng bản sao lưu này chỉ được tạo nếu khe hiện tại chưa từng được KernelSU patch.
-Giá trị SHA1 của image sao lưu sẽ được lưu trong boot image đã patch, và tệp sao lưu được lưu tại `/data/adb/ksu/ksu_backup_$SHA1`.
-Khi bạn dùng tính năng "Gỡ cài đặt → Khôi phục image gốc" trong trình quản lý, nếu tồn tại tệp sao lưu khớp với SHA1 được ghi trong image hiện đang được patch, tệp đó sẽ được khôi phục trực tiếp.
-Kể từ phiên bản 3.2.6, nếu đây là lần đầu bạn cài KernelSU mà không có root, sau khi patch boot image bằng tùy chọn "Chọn file", bạn có thể chọn "Sao lưu thành ảnh gốc". Khi đó, image sao lưu sẽ được lưu trong bộ nhớ trong của trình quản lý; sau khi flash và khởi động bằng image đã patch, lần đầu mở trình quản lý sẽ tự động chuyển bản sao lưu đó tới `/data/adb/ksu`.
-:::
+If you don't want to use the manager, you can also use the command line to install LKM. The `ksud` tool provided by KernelSU can help you patch the official firmware quickly and then flash it.
 
-### Sử dụng dòng lệnh
-
-Nếu bạn không muốn dùng trình quản lý, bạn cũng có thể dùng dòng lệnh để cài đặt LKM. Công cụ `ksud` do KernelSU cung cấp có thể giúp bạn nhanh chóng patch firmware chính thức rồi flash nó.
-
-Công cụ này hỗ trợ macOS, Linux và Windows. Bạn có thể tải phiên bản tương ứng từ [GitHub Release](https://github.com/tiann/KernelSU/releases).
-
-Cách dùng: `ksud boot-patch`, bạn có thể xem trợ giúp dòng lệnh để biết các tùy chọn cụ thể.
+The usage of `ksud` is as follows:
 
 ```sh
-oriole:/ # ksud boot-patch -h
-Patch boot or init_boot images to apply KernelSU
+ksud boot-patch 
+```
 
+```txt
 Usage: ksud boot-patch [OPTIONS]
 
 Options:
-  -b, --boot <BOOT>              boot image path, if not specified, will try to find the boot image automatically
-  -k, --kernel <KERNEL>          kernel image path to replace
-  -m, --module <MODULE>          LKM module path to replace, if not specified, will use the builtin one
+  -b, --boot <BOOT>              Boot image be patched
+  -l, --lkm <LKM>                LKM module path. If not specified, the built-in module will be used
+  -m, --module <MODULE>          LKM module path to be replaced. If not specified, the built-in module will be used
   -i, --init <INIT>              init to be replaced
-  -u, --ota                      will use another slot when boot image is not specified
+  -u, --ota                      Will use another slot if the boot image is not specified
   -f, --flash                    Flash it to boot partition after patch
-  -o, --out <OUT>                output path, if not specified, will use current directory
-      --magiskboot <MAGISKBOOT>  magiskboot path, if not specified, will use builtin one
-      --kmi <KMI>                KMI version, if specified, will use the specified KMI
+  -o, --out <OUT>                Output path. If not specified, the current directory will be used
+      --magiskboot <MAGISKBOOT>  magiskboot path. If not specified, the built-in version will be used
+      --kmi <KMI>                KMI version. If specified, the indicated KMI will be used
   -h, --help                     Print help
 ```
 
-Một vài tùy chọn cần giải thích:
+A few options that need to be explained:
 
-1. Tùy chọn `--magiskboot` có thể chỉ định đường dẫn tới magiskboot. Nếu không chỉ định, ksud sẽ tìm nó trong biến môi trường. Nếu bạn không biết cách lấy magiskboot, hãy xem [tại đây](#patch-boot-image).
-2. Tùy chọn `--kmi` có thể chỉ định phiên bản `KMI`. Nếu tên kernel trên thiết bị của bạn không tuân theo đặc tả KMI, bạn có thể chỉ định bằng tùy chọn này.
+1. The `--magiskboot` option can specify the path of magiskboot. If not specified, ksud will look for it in the environment variables. If you don’t know how to get magiskboot, you can check [here](#patch-boot-image).
+2. The `--kmi` option can specify the `KMI` version. If the kernel name of your device doesn't follow the KMI specification, you can specify it using this option.
 
-Cách dùng phổ biến nhất là:
+The most common usage is:
 
 ```sh
 ksud boot-patch -b <boot.img> --kmi android13-5.10

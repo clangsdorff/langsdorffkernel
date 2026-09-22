@@ -127,6 +127,7 @@ fun AboutScreenMiuix(
                     titleColor = colorScheme.onSurface.copy(
                         alpha = ((scrollProgress - 0.35f) / 0.65f).coerceIn(0f, 1f),
                     ),
+                    defaultWindowInsetsPadding = false,
                     navigationIcon = {
                         IconButton(
                             onClick = actions.onBack

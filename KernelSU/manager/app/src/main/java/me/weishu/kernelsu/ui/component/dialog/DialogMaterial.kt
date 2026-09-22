@@ -2,8 +2,9 @@ package me.weishu.kernelsu.ui.component.dialog
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -16,23 +17,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import me.weishu.kernelsu.ui.component.markdown.MarkdownContent
-import me.weishu.kernelsu.ui.component.material.ExpressiveDialog
 
 @Composable
-fun LoadingDialogMaterial(
-    showDialog: MutableState<Boolean>,
-) {
+fun LoadingDialogMaterial(showDialog: MutableState<Boolean>) {
     if (showDialog.value) {
         Dialog(
-            onDismissRequest = { },
-            // Keep the dialog non-dismissible
-            properties = DialogProperties(
-                dismissOnClickOutside = false,
-                dismissOnBackPress = false,
-            )
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false)
         ) {
             Surface(
-                modifier = Modifier.size(100.dp), shape = MaterialTheme.shapes.extraLarge
+                modifier = Modifier.size(100.dp), shape = RoundedCornerShape(8.dp)
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -52,14 +46,14 @@ fun ConfirmDialogMaterial(
     showDialog: MutableState<Boolean>
 ) {
     if (showDialog.value) {
-        ExpressiveDialog(
+        AlertDialog(
             onDismissRequest = {
                 dismiss()
                 showDialog.value = false
             },
             title = { Text(visuals.title) },
-            text = visuals.content?.let { content ->
-                {
+            text = {
+                visuals.content?.let { content ->
                     when {
                         visuals.isMarkdown -> MarkdownContent(content = content, isMarkdown = true)
                         visuals.isHtml -> MarkdownContent(content = content, isMarkdown = false)

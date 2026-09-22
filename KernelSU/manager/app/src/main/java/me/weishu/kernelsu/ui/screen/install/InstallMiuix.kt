@@ -53,8 +53,6 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.ScrollBehavior
-import top.yukonga.miuix.kmp.basic.SnackbarHost
-import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -81,7 +79,6 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 internal fun InstallScreenMiuix(
     uiState: InstallUiState,
     actions: InstallScreenActions,
-    snackbarHost: SnackbarHostState,
 ) {
     val enableBlur = LocalEnableBlur.current
     val scrollBehavior = MiuixScrollBehavior()
@@ -99,12 +96,6 @@ internal fun InstallScreenMiuix(
             )
         },
         popupHost = { },
-        snackbarHost = {
-            SnackbarHost(
-                state = snackbarHost,
-                modifier = Modifier.padding(bottom = 20.dp),
-            )
-        },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)
     ) { innerPadding ->
         Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
@@ -126,7 +117,6 @@ internal fun InstallScreenMiuix(
                         SelectInstallMethod(
                             state = uiState,
                             onSelected = actions.onSelectMethod,
-                            onDownloadFile = actions.onDownloadFile,
                             onSelectBootImage = actions.onSelectBootImage,
                         )
                     }
@@ -135,30 +125,15 @@ internal fun InstallScreenMiuix(
                         enter = expandVertically(),
                         exit = shrinkVertically()
                     ) {
-                        val isDownload = uiState.installMethod is InstallMethod.DownloadFile
-                        val partitionItems = if (isDownload) {
-                            uiState.remoteDisplayPartitions
-                        } else {
-                            uiState.displayPartitions
-                        }
-                        val partitionIndex = if (isDownload) {
-                            uiState.remotePartitionSelectionIndex
-                        } else {
-                            uiState.partitionSelectionIndex
-                        }
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 12.dp),
                         ) {
                             OverlayDropdownPreference(
-                                items = partitionItems,
-                                selectedIndex = partitionIndex,
-                                title = if (isDownload) {
-                                    stringResource(R.string.install_select_partition)
-                                } else {
-                                    "${stringResource(R.string.install_select_partition)} (${uiState.slotSuffix})"
-                                },
+                                items = uiState.displayPartitions,
+                                selectedIndex = uiState.partitionSelectionIndex,
+                                title = "${stringResource(R.string.install_select_partition)} (${uiState.slotSuffix})",
                                 onSelectedIndexChange = actions.onSelectPartition,
                                 startAction = {
                                     Icon(
@@ -168,24 +143,6 @@ internal fun InstallScreenMiuix(
                                         contentDescription = null
                                     )
                                 }
-                            )
-                        }
-                    }
-                    AnimatedVisibility(
-                        visible = uiState.canForceBackup,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp),
-                        ) {
-                            CheckboxPreference(
-                                title = stringResource(id = R.string.install_force_backup),
-                                checked = uiState.forceBackup,
-                                summary = stringResource(id = R.string.install_force_backup_summary),
-                                onCheckedChange = actions.onSelectForceBackup
                             )
                         }
                     }
@@ -298,7 +255,6 @@ internal fun InstallScreenMiuix(
 private fun SelectInstallMethod(
     state: InstallUiState,
     onSelected: (InstallMethod) -> Unit,
-    onDownloadFile: () -> Unit,
     onSelectBootImage: () -> Unit,
 ) {
     val confirmDialog = rememberConfirmDialog(
@@ -312,7 +268,6 @@ private fun SelectInstallMethod(
     val onClick = { option: InstallMethod ->
         when (option) {
             is InstallMethod.SelectFile -> onSelectBootImage()
-            is InstallMethod.DownloadFile -> onDownloadFile()
             is InstallMethod.DirectInstall -> onSelected(option)
             is InstallMethod.DirectInstallToInactiveSlot -> confirmDialog.showConfirm(dialogTitle, dialogContent)
         }

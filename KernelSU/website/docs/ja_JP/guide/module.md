@@ -69,9 +69,6 @@ KernelSU モジュールは、`/data/adb/modules` に配置された以下の構
 |   ├── uninstall.sh        <--- このスクリプトは KernelSU がモジュールを削除するときに実行されます
 │   ├── system.prop         <--- このファイルのプロパティは resetprop によってシステムプロパティとして読み込まれます
 │   ├── sepolicy.rule       <--- カスタム SEPolicy ルールを追加します
-│   ├── initrc/             <--- このディレクトリ内の .rc ファイルは起動時に init.rc に挿入されます
-│   │   ├── myservice.rc
-│   │   └── ...
 │   │
 │   │      *** 自動生成されるため、手動で作成または変更しないでください ***
 │   │
@@ -179,80 +176,6 @@ OverlayFS に興味があれば、Linux カーネルの [OverlayFS のドキュ�
 
 もしあなたのモジュールが追加の SEPolicy パッチを必要とする場合は、それらのルールをこのファイルに追加してください。このファイルの各行は、ポリシーステートメントとして扱われます。
 
-### initrc の挿入 {#initrc-injection}
-
-KernelSUは、カスタムの Android Init RC ディレクティブをシステムの `init.rc` に挿入するメカニズムを提供します。これにより、モジュールはシステムパーティションを変更することなく、カスタムAndroidサービスの登録、プロパティトリガーの設定、またはその他のInit言語アクションの実行を行うことができます。
-
-起動中に、KernelSUカーネルモジュールは `read()` および `fstat()` システムコールをインターセプトします。Android initプロセスが `/system/etc/init/hw/init.rc` を読み取るときに、KernelSUはカスタムRCコンテンツをファイルの末尾に透過的に追加します。initプロセスは、元の init.rc コンテンツと同じように、これらの挿入されたディレクティブを解析します。
-
-ユーザースペース側では、ksudが有効になっているモジュールからのすべての `.rc` ファイルを連結して1つの `modules.rc` ファイルを作成し、`/metadata` パーティションに保存します。このファイルは、モジュールの状態（インストール、有効化、無効化、アンインストールなど）が変更されるたびに自動的に再生成されます。
-
-#### モジュール initrc ファイル
-
-モジュールディレクトリに `initrc/` サブディレクトリを作成し、そこに `.rc` ファイルを配置します。
-
-```txt
-/data/adb/modules/<MODID>/
-├── initrc/
-│   ├── myservice.rc
-│   └── another.rc
-└── ...
-```
-
-::: tip
-- ファイルの拡張子は `.rc` である必要があります。
-- モジュールが有効になっている限り、`initrc/` ディレクトリ内のすべての `.rc` ファイルが含まれます（実行権限は必要ありません）。
-- ファイルはディレクトリ内で**ファイル名のアルファベット順**に処理され、モジュールは**モジュールIDのアルファベット順**に処理されます。
-:::
-
-#### 一般的な initrc ファイル
-
-モジュールレベルのRCファイルに加えて、グローバルディレクトリに `.rc` ファイルを配置することもできます。
-
-```txt
-/data/adb/initrc.d/
-├── myservice.rc
-└── another.rc
-```
-
-::: warning 一般的な initrc ファイルには実行権限が必要です
-モジュールの `initrc/` ディレクトリとは異なり、`/data/adb/initrc.d/` 内のファイルを含めるには**実行権限が必要**です。実行不可能な `.rc` ファイルは静かにスキップされます。
-:::
-
-一般的な `initrc.d/` ファイルは、モジュールのRCファイルよりも前に処理されます。
-
-#### 例
-
-カスタムAndroidサービスを登録する `.rc` ファイルの例を次に示します。
-
-```rc
-service myservice /data/adb/modules/mymodule/bin/myservice
-    user root
-    group root
-    disabled
-    seclabel u:r:ksu:s0
-
-on property:sys.boot_completed=1
-    start myservice
-```
-
-このファイルが `/data/adb/modules/mymodule/initrc/myservice.rc` に配置されている場合、起動時に `myservice` という名前のサービスを登録し、`sys.boot_completed=1` に達したときにサービスを開始します。
-
-#### 手動更新
-
-次のコマンドを使用して、`modules.rc` の再生成を手動でトリガーできます（変更は次回の起動時に有効になります）。
-
-```sh
-ksud initrc refresh
-```
-
-::: tip
-- initrc の挿入は、起動プロセスの非常に早い段階（init が init.rc を読み取るとき）で、post-fs-data およびモジュールスクリプトが実行される**前**に行われます。
-- 挿入されたRCコンテンツは、元の init.rc の一部として init によって扱われ、すべての Android Init 言語構文（サービス定義、トリガー、プロパティ設定など）をサポートします。
-- initrc の挿入は、システムコールフックがインストールされないため、**late-load モード**では**使用できません**。
-- ksudでイメージにパッチを当てる際に `--no-custom-rc` パラメータを渡すことで、モジュールRCの挿入を無効にすることができます。
-:::
-
 ## モジュールのインストーラー
 
 KernelSU モジュールインストーラーは、KernelSU Manager アプリでインストールできる、ZIP ファイルにパッケージされた KernelSU モジュールです。最もシンプルな KernelSU モジュールインストーラーは、KernelSU モジュールを ZIP ファイルとしてパックしただけのものです。
@@ -292,9 +215,6 @@ KernelSU モジュールは、カスタムリカバリーからのインスト�
 - `ARCH` (string): デバイスの CPU アーキテクチャ。値は `arm`、`arm64`、`x86`、`x64` のいずれか
 - `IS64BIT` (bool): `ARCH` が `arm64` または `x64` のときは `true` 
 - `API` (int): 端末の API レベル・Android のバージョン（例：Android 6.0 なら`23`）
-- `KSU_UAPI_VER` (int): KernelSU ユーザー空間 (ksud) の UAPI バージョン（例：`2`）。カーネルドライバーに破壊的変更がある場合にこのバージョンが更新されます。モジュールはこの値で互換性を確認できます。
-- `KSU_RUNTIME_MODE` (string): KernelSU の現在の実行モード。値は `built-in`（GKI モード、カーネルに組み込み）、`lkm`（起動時にカーネルモジュールとして読み込み）、または `late-load`（起動後にカーネルモジュールとして読み込み）のいずれかです。
-- `KSU_LATE_LOAD` (int?): KernelSU が起動後に遅延読み込みされた場合、この変数の値は `1` になります。それ以外の場合、この変数は設定されません。
 
 ::: warning 警告
 KernelSU では、MAGISK_VER_CODE は常に25200、MAGISK_VER は常にv25.2です。この2つの変数で KernelSU 上で動作しているかどうかを判断するのはやめてください。
@@ -372,7 +292,6 @@ KernelSU では、起動スクリプトは保存場所によって一般スク�
 | 動作 | 標準起動 | Late-load モード |
 |------|:---:|:---:|
 | カーネルモジュールが init (PID 1) によりロード | はい | いいえ（起動後にロード） |
-| initrc 挿入 (モジュールの `.rc` ファイルを init.rc に挿入) | はい | 利用不可 |
 | ksud の kprobe フック (execve/read/fstat/input) | はい | スキップ |
 | セーフモード検出（音量キー） | はい | 常に無効 |
 | 起動ログのキャプチャ (logcat/dmesg) | はい | スキップ |
