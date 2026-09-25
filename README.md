@@ -6,7 +6,7 @@
 - Reworked GPU DVFS: fixed the dead highspeed jump, retuned thresholds, lowered the CPU floors.
 - Every GPU clock step reachable and holdable. 1105 MHz opens at 65% utilization, 1196 MHz at 70%.
 - Floor under the GPU clock ceiling, default 1001 MHz.
-- Runtime tunables for the GPU ceiling floor, the AP thermistor offset, the governor redirect and the CPU voltage margin.
+- Runtime tunables for the GPU ceiling floor and the governor redirect.
 - Updated GPU driver (bifrost r51p0)
 - Official KernelSU v3.3.0 with SUSFS v2.3.0.
 - Dex touchpad support for OneUI ROMs.

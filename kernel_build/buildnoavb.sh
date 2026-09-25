@@ -1,6 +1,7 @@
 #!/bin/bash
 
-XY_VERSION="@3.8.3en"
+XY_VERSION="@3.8.4e"
+XY_VERSION="${XY_VERSION}n"
 
 set -e
 
