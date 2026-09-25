@@ -5911,35 +5911,35 @@
 				};
 
 				lit0-alert1 {
-					temperature = <0x14ff0>;
+					temperature = <0x128e0>;
 					hysteresis = <0x7d0>;
 					type = "active";
 					phandle = <0x9b>;
 				};
 
 				lit0-alert2 {
-					temperature = <0x15ba8>;
+					temperature = <0x13c68>;
 					hysteresis = <0x1388>;
 					type = "active";
 					phandle = <0x9c>;
 				};
 
 				lit0-alert3 {
-					temperature = <0x16f30>;
+					temperature = <0x14ff0>;
 					hysteresis = <0x1388>;
 					type = "active";
 					phandle = <0x9d>;
 				};
 
 				lit0-alert4 {
-					temperature = <0x17700>;
+					temperature = <0x16378>;
 					hysteresis = <0x1388>;
 					type = "active";
 					phandle = <0x9e>;
 				};
 
 				lit0-alert5 {
-					temperature = <0x182b8>;
+					temperature = <0x17700>;
 					hysteresis = <0x1388>;
 					type = "active";
 					phandle = <0x9f>;
@@ -6021,35 +6021,35 @@
 				};
 
 				lit1-alert1 {
-					temperature = <0x14050>;
+					temperature = <0x128e0>;
 					hysteresis = <0x7d0>;
 					type = "active";
 					phandle = <0xa5>;
 				};
 
 				lit1-alert2 {
-					temperature = <0x14ff0>;
+					temperature = <0x13c68>;
 					hysteresis = <0x1388>;
 					type = "active";
 					phandle = <0xa6>;
 				};
 
 				lit1-alert3 {
-					temperature = <0x16378>;
+					temperature = <0x14ff0>;
 					hysteresis = <0x1388>;
 					type = "active";
 					phandle = <0xa7>;
 				};
 
 				lit1-alert4 {
-					temperature = <0x16f30>;
+					temperature = <0x16378>;
 					hysteresis = <0x1388>;
 					type = "active";
 					phandle = <0xa8>;
 				};
 
 				lit1-alert5 {
-					temperature = <0x182b8>;
+					temperature = <0x17700>;
 					hysteresis = <0x1388>;
 					type = "active";
 					phandle = <0xa9>;
