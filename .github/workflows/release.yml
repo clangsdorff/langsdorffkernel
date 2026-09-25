@@ -50,9 +50,63 @@ jobs:
       with:
         name: Permissive-Build
         path: kernel_build/langsdorff*
+  EnforcingNoOC:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        ref: no-oc-root
+    - name: Check version
+      run: |
+        eval "$(grep '^XY_VERSION=' kernel_build/buildnoavb.sh)"
+        [ "$XY_VERSION" = "@${{ github.ref_name }}en" ] || { echo "no-oc-root builds $XY_VERSION, not @${{ github.ref_name }}en"; exit 1; }
+    - name: Install tools
+      run: |
+        sudo apt-get install python2 pahole libelf-dev -y
+        DIR="$(readlink -f .)"
+        PARENT_DIR="$(readlink -f "${DIR}/..")"
+        git clone https://gitlab.com/tejas101k/clang-r450784d.git/ "$PARENT_DIR/clang-r450784d" --depth=1
+    - uses: rui314/setup-mold@v1
+    - name: Build
+      run: |
+        bash buildnoavb.sh
+    - name: Upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: Enforcing-NoOC-Build
+        path: kernel_build/langsdorff*
+  PermissiveNoOC:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        ref: no-oc-root
+    - name: Check version
+      run: |
+        eval "$(grep '^XY_VERSION=' kernel_build/buildnoavbp.sh)"
+        [ "$XY_VERSION" = "@${{ github.ref_name }}pn" ] || { echo "no-oc-root builds $XY_VERSION, not @${{ github.ref_name }}pn"; exit 1; }
+    - name: Install tools
+      run: |
+        sudo apt-get install python2 pahole libelf-dev -y
+        DIR="$(readlink -f .)"
+        PARENT_DIR="$(readlink -f "${DIR}/..")"
+        git clone https://gitlab.com/tejas101k/clang-r450784d.git/ "$PARENT_DIR/clang-r450784d" --depth=1
+    - uses: rui314/setup-mold@v1
+    - name: Build
+      run: |
+        bash buildnoavbp.sh
+    - name: Upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: Permissive-NoOC-Build
+        path: kernel_build/langsdorff*
   ReleaseKernel:
     runs-on: ubuntu-22.04
-    needs: [Enforcing, Permissive]
+    needs: [Enforcing, Permissive, EnforcingNoOC, PermissiveNoOC]
     steps:
       - name: Download Enforcing Build
         uses: actions/download-artifact@v8
@@ -64,6 +118,16 @@ jobs:
         with:
           name: Permissive-Build
           path: kernel_build/permissive
+      - name: Download Enforcing No-OC Build
+        uses: actions/download-artifact@v8
+        with:
+          name: Enforcing-NoOC-Build
+          path: kernel_build/enforcing-nooc
+      - name: Download Permissive No-OC Build
+        uses: actions/download-artifact@v8
+        with:
+          name: Permissive-NoOC-Build
+          path: kernel_build/permissive-nooc
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
@@ -73,5 +137,7 @@ jobs:
           files: |
             kernel_build/enforcing/langsdorff*
             kernel_build/permissive/langsdorff*
+            kernel_build/enforcing-nooc/langsdorff*
+            kernel_build/permissive-nooc/langsdorff*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
