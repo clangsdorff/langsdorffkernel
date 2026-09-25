@@ -18,8 +18,6 @@
  * http://www.gnu.org/licenses/gpl-2.0.html.
  */
 
-#include <linux/moduleparam.h>
-
 #include <gpex_clock.h>
 #include <gpex_pm.h>
 #include <gpex_dvfs.h>
@@ -29,12 +27,6 @@
 #include "gpex_clock_internal.h"
 
 static struct _clock_info *clk_info;
-
-/* SSRM caps the GPU on skin temperature via this node; 0 = stock behaviour */
-static int sysfs_max_lock_floor_khz = 1001000;
-module_param(sysfs_max_lock_floor_khz, int, 0644);
-MODULE_PARM_DESC(sysfs_max_lock_floor_khz,
-		 "lowest GPU ceiling a sysfs writer may request, in kHz (0 = no floor)");
 
 /*************************************
  * sysfs node functions
@@ -167,9 +159,6 @@ GPEX_STATIC ssize_t set_max_lock_dvfs(const char *buf, size_t count)
 	}
 
 	clk_info->user_max_lock_input = clock;
-
-	if (sysfs_max_lock_floor_khz > 0 && clock < sysfs_max_lock_floor_khz)
-		clock = sysfs_max_lock_floor_khz;
 
 	clock = gpex_get_valid_gpu_clock(clock, false);
 
