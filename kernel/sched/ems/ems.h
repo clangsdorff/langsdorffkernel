@@ -15,16 +15,7 @@
 
 #include "../../../drivers/android/binder_internal.h"
 
-/*
- * cpuctl_task_group_idx() derives the index from the cgroup's css id, which is
- * handed out in creation order, so this list must match the order in which
- * init.rc does "mkdir /dev/cpuctl/<name>". Android has created a dex2oat group
- * since S, right after system-background, and it was missing here: every group
- * below it was shifted by one, so EMS read dex2oat as nnapi-hal, nnapi-hal as
- * camera-daemon, and camera-daemon as midground. The visible cost was that the
- * camera emstune mode boosted an idle group instead of the camera daemon.
- * task_cgroup_name[] in tune.c is indexed by this enum and must stay in sync.
- */
+/* css id order: must match the order init.rc creates /dev/cpuctl groups; keep task_cgroup_name[] in sync */
 enum task_cgroup {
 	CGROUP_ROOT,
 	CGROUP_FOREGROUND,

@@ -55,14 +55,7 @@ static LIST_HEAD(cpufreq_governor_list);
 
 static char default_governor[CPUFREQ_NAME_LEN];
 
-/*
- * The vendor init.rc still carries Samsung own comment "Change CPUFreq
- * governor to energy_aware(EGO)" directly above two lines that write
- * schedutil, so EMS own governor never runs even though the emstune tables in
- * DT are written for it. Turn that boot-time write back into what the comment
- * says. Only init is redirected; whatever userspace asks for later takes
- * effect as asked.
- */
+/* vendor init.rc writes schedutil under a comment asking for energy_aware (EGO) */
 static bool redirect_schedutil = true;
 
 /*

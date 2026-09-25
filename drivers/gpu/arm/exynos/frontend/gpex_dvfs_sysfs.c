@@ -126,14 +126,7 @@ static ssize_t show_governor(char *buf)
 }
 CREATE_SYSFS_DEVICE_READ_FUNCTION(show_governor);
 
-/* Accepts either a governor name or its table index.
- *
- * Returns: governor type on success, -EINVAL on unparsable or out of range
- * input. Never falls back to a default: the previous version left the parsed
- * value untouched when kstrtoint() failed, so writing a governor name silently
- * switched the GPU to whatever index happened to be on the stack (in practice
- * 0, Default) while still reporting success.
- */
+/* name or table index; -EINVAL otherwise */
 static int gpu_dvfs_governor_parse(const char *buf)
 {
 	gpu_dvfs_governor_info *governor_info;
@@ -189,9 +182,6 @@ static ssize_t show_down_staycount(char *buf)
 				dvfs->table[i].down_staycount);
 	spin_unlock_irqrestore(&dvfs->spinlock, flags);
 
-	/* The write format is per level and does not match the lines above, which
-	 * is why a bare "echo 3" is rejected. Spell it out here.
-	 */
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "write format: <clock> <staycount %d-%d>\n",
 			MIN_DOWN_STAYCOUNT, MAX_DOWN_STAYCOUNT);
 
@@ -557,9 +547,7 @@ static ssize_t set_kernel_sysfs_governor(const char *buf, size_t count)
 }
 CREATE_SYSFS_KOBJECT_WRITE_FUNCTION(set_kernel_sysfs_governor)
 
-/* Deadline driven boost knobs. gpu_frame_boost_clock = 0 turns the whole thing
- * off and restores plain utilization based governing.
- */
+/* gpu_frame_boost_clock = 0 disables the deadline boost */
 static ssize_t show_kernel_sysfs_frame_boost_clock(char *buf)
 {
 	ssize_t len = 0;
