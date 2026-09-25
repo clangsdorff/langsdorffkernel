@@ -143,21 +143,11 @@ static int gpu_dvfs_governor_interactive(int utilization)
 	int max_clock_lev = gpex_clock_get_table_idx(gpex_clock_get_max_clock());
 	int min_clock_lev = gpex_clock_get_table_idx(gpex_clock_get_min_clock());
 	int highspeed_level = gpex_clock_get_table_idx(dvfs->interactive.highspeed_clock);
-	/* >= and not >, so that naming the topmost table entry as highspeed_clock
-	 * still arms the jump. A bare > silently disables it there, which is how
-	 * the stock <highspeed_clock = gpu_min_clock> ends up unreachable from the
-	 * other side of the table.
-	 */
+	/* >=: highspeed_clock may be the topmost table entry */
 	bool highspeed_wanted = (highspeed_level >= max_clock_lev) &&
 				(dvfs->step > highspeed_level) &&
 				(utilization > dvfs->interactive.highspeed_load);
 
-	/* The highspeed jump is evaluated on its own load threshold instead of
-	 * being nested inside the per-level step-up branch. Nested, it is only
-	 * reached while the governor is already stepping up, so on bursty render
-	 * loads that never cross max_threshold it stays dead code no matter what
-	 * highspeed_clock/highspeed_load are set to.
-	 */
 	if (highspeed_wanted &&
 	    (dvfs->interactive.delay_count >= dvfs->interactive.highspeed_delay)) {
 		dvfs->step = highspeed_level;
@@ -171,9 +161,6 @@ static int gpu_dvfs_governor_interactive(int utilization)
 		return 0;
 	}
 
-	/* Waiting out highspeed_delay must not also hold the clock down: keep
-	 * counting, but let the normal ladder run in the meantime.
-	 */
 	if (highspeed_wanted)
 		dvfs->interactive.delay_count++;
 	else
@@ -461,16 +448,6 @@ static int gpu_dvfs_governor_dynamic(int utilization)
 	return 0;
 }
 
-/* Deadline driven clock floor, fed by gpex_dvfs_notify_render_job().
- *
- * Utilization is a throughput metric with no notion of "too late": a GPU busy
- * 45% of a polling window while missing every 16.7ms frame deadline looks
- * exactly like one with plenty of headroom, so no threshold tuning can make the
- * governor react to it. When a fragment job has recently been measured
- * overrunning its share of the frame budget, clamp whatever the governor picked
- * to the frame boost level. An idle GPU stops refreshing the timestamp, the
- * clamp expires and the table walks the clock back down to min as usual.
- */
 static void gpu_dvfs_apply_frame_boost(void)
 {
 	unsigned long flags;
@@ -480,11 +457,7 @@ static void gpu_dvfs_apply_frame_boost(void)
 	if (dvfs->frame_boost.clock <= 0)
 		return;
 
-	/* The clamp reasons about the interactive table's thresholds. The other
-	 * governors compute their target from a different model (joint uses the
-	 * frame margin, static/booster ignore utilization), so overriding their
-	 * decision here would be meaningless rather than conservative.
-	 */
+	/* thresholds below are interactive-table specific */
 	if (dvfs->governor_type != G3D_DVFS_GOVERNOR_INTERACTIVE)
 		return;
 
@@ -506,15 +479,7 @@ static void gpu_dvfs_apply_frame_boost(void)
 
 	if (level >= 0 && dvfs->step > level) {
 		dvfs->step = level;
-		/* gpex_dvfs_set_clock_callback() only refreshes down_requirement
-		 * when it notices the step moved, and it runs after this, so it
-		 * sees no change and would leave the previous level's staycount
-		 * in place. Apply the new level's here.
-		 *
-		 * The thermal ceiling is not applied here on purpose: TMU holds a
-		 * max lock and gpu_check_target_clock() enforces it on the way to
-		 * the hardware, after this clamp.
-		 */
+		/* set_clock_callback() won't see a step change; thermal cap is applied later by TMU lock */
 		dvfs->down_requirement = dvfs->table[level].down_staycount;
 	}
 

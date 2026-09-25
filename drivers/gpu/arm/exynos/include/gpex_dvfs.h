@@ -53,31 +53,17 @@ void gpex_dvfs_term(void);
 int gpex_dvfs_set_clock_callback(void);
 
 /**
- * gpex_dvfs_notify_render_job() - report how long a frame pipeline job ran
+ * gpex_dvfs_notify_render_job() - report a vertex/fragment job's run time
  * @ns_spent: job execution time in nanoseconds
  *
- * Called from the job completion path for vertex and fragment jobs, the two
- * that belong to a frame. A job that overruns its share of the frame budget
- * arms the deadline driven clock floor, which utilization based governing
- * cannot detect on its own. Jobs flagged BASE_JD_REQ_ONLY_COMPUTE are left out:
- * they carry no frame deadline.
- *
- * Context: called with hwaccess_lock held and interrupts disabled.
+ * Context: hwaccess_lock held, interrupts disabled.
  */
 void gpex_dvfs_notify_render_job(u64 ns_spent);
 
 /**
- * gpex_dvfs_notify_busy_ns() - charge an interval to the current frame
- * @gpu_active: whether the GPU was running work over the interval
- * @ns_spent: length of the interval in nanoseconds
- *
- * Fed from the same two places that charge kbase's pm metrics, so the frame
- * accumulator ends up holding the identical quantity utilization is computed
- * from. Deriving it here from atom submit and complete events instead would
- * need those to pair up exactly; they do not, because an atom can be soft
- * stopped and resubmitted, and a single lost pair leaves an in flight counter
- * stuck above zero for good, at which point the accumulator silently degrades
- * into wall clock time.
+ * gpex_dvfs_notify_busy_ns() - charge a pm metrics interval to the current frame
+ * @gpu_active: whether the GPU was busy over the interval
+ * @ns_spent: interval length in nanoseconds
  *
  * Context: any, including hardirq with hwaccess_lock held.
  */
@@ -85,11 +71,6 @@ void gpex_dvfs_notify_busy_ns(bool gpu_active, u64 ns_spent);
 
 /**
  * gpex_dvfs_notify_frame_end() - the frame's out fence has been signalled
- *
- * Compares the GPU busy time accumulated since the previous frame against
- * frame_us and arms the boost when the frame's own work did not fit. Unlike the
- * per job path this sees the whole frame, so it measures the quantity that
- * actually has a deadline.
  *
  * Context: process context, no hwaccess_lock.
  */

@@ -71,26 +71,7 @@
 #endif
 */
  
-/*
- * The DDK, RTA and VRA blobs shipped in /vendor are linked for a fixed kernel
- * virtual address, so this base must not move with the kernel configuration.
- *
- * The condition here used to be #ifdef CONFIG_KASAN, from when KASAN always
- * meant a shadow region: shadow KASAN raises KASAN_SHADOW_END, and with it
- * MODULES_VADDR and VMALLOC_START, by 64GB, so the !KASAN branch added the
- * same 64GB back and both landed on one absolute address. KASAN_HW_TAGS has
- * no shadow - KASAN_SHADOW_END in asm/memory.h keys off CONFIG_KASAN_GENERIC
- * || CONFIG_KASAN_SW_TAGS, not CONFIG_KASAN - so on a HW_TAGS or KASAN-less
- * build VMALLOC_START is the same either way and the compensation is pure
- * error. Turning KASAN off moved the libraries 64GB away from where the blobs
- * are linked; the DDK loaded and began executing, then dereferenced one of its
- * own absolute pointers and took a data abort inside is_load_ddk_bin().
- *
- * camera-pp/gdc/exynos-bcm_dbg.h already carries the corrected form of this
- * test for 5.10. Rather than repeat it, pin the base: it is the address the
- * shipped blobs are built for, and it is what every configuration of this
- * kernel has actually used.
- */
+/* vendor DDK/RTA/VRA blobs are linked for this address, independent of KASAN */
 #define LIB_OFFSET		(VMALLOC_START + BPF_OFS + 0xF6000000 - 0x8000000)
 #define __LIB_START		(LIB_OFFSET + 0x04000000 - CDH_SIZE)
 #define LIB_START		(__LIB_START)

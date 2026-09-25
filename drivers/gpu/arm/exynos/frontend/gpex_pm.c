@@ -266,10 +266,7 @@ static ssize_t show_sysfs_poweroff_delay(char *buf)
 	ssize_t ret = 0;
 	int delay = pm.runtime_pm_delay_time;
 
-	/* The store does take effect, but only until the recovery work item puts
-	 * the devicetree default back. Reporting that default unconditionally made
-	 * the node look like it accepted writes and then ignored them.
-	 */
+	/* the recovery work item restores the DT default, so report the live value */
 	if (pm.dev && pm.dev->power.use_autosuspend)
 		delay = pm.dev->power.autosuspend_delay;
 

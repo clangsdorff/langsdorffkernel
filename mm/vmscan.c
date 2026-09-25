@@ -2616,14 +2616,7 @@ static struct attribute_group vmscan_attr_group = {
 	.name = "vmscan",
 };
 
-/*
- * The same two attributes, published a second time under /sys/kernel/sec_mm/.
- * Newer Samsung userspace looks for them there: the HyPer HAL's
- * KERNEL_APP_START_NOTIFY resource has BoostPath /sys/kernel/sec_mm/am_app_launch
- * in /vendor/etc/hyper/config_vendor.json, and init.memory.rc chowns both
- * /sys/kernel/sec_mm/am_app_launch and /sys/kernel/sec_mm/mem_boost_mode.
- * No .name, so the attributes land directly in the sec_mm directory.
- */
+/* HyPer HAL and init.memory.rc expect these under /sys/kernel/sec_mm */
 static struct kobject *sec_mm_kobj;
 
 static struct attribute_group sec_mm_attr_group = {

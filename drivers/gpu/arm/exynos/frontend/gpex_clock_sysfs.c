@@ -30,45 +30,7 @@
 
 static struct _clock_info *clk_info;
 
-/* Lower bound, in kHz, for a userspace-requested GPU ceiling.
- *
- * The only writer of gpu_max_clock on this device is Samsung's SSRM thermal
- * governor (com.sec.android.sdhms), by way of the HyPer HAL. It does not look
- * at the GPU junction temperature at all: its GPU limiter is keyed on the SKIN
- * virtual sensor published by the Samsung thermal HAL, which is a regression
- * over the battery, charger, skin, AP and PA thermistors. The trip table lives
- * in the app's own resources (res/raw/siop_a14_exynos850.xml):
- *
- *   GPUFreqMax  temp="380:400:420:450"  min="1001000:865000:754000:377000"
- *
- * driven by a PID whose setpoint is the current stage's skin threshold, so the
- * ceiling starts walking down as soon as the skin estimate passes 38 C. At
- * that point the GPU junction is typically 55-67 C, while the kernel's own
- * first effective cut is at 86 C: the G3D zone declares trips at 76 and 81 C
- * too, but every cooling-map entry binds state 0 to 0, so throttling is done
- * by the vendor gpu_cooling path and emul_temp shows nothing happening below
- * 86 C. The kernel is simply better informed than SSRM is about whether the
- * GPU needs to slow down.
- *
- * Requests below this floor are raised to it. At 1001000 the three upper
- * stages (865/754/377 MHz) are neutralised, so SSRM keeps the ceiling it walks
- * down to on skin temperature alone but can no longer take the GPU below the
- * 1001 MHz bin. The stage-0 walk 1196 -> 1105 -> 1001 MHz passes through
- * untouched, since every value in it is at or above the floor; a sustained
- * load therefore settles at 1001 MHz. That is deliberate: it leaves SSRM a
- * real, if bounded, lever over skin temperature.
- *
- * This only bounds SYSFS_LOCK. TMU_LOCK is a separate entry in
- * user_max_lock[] and the effective ceiling is the minimum across all lock
- * sources, so junction protection is untouched either way: the 86 C junction
- * cut still fires exactly as before, regardless of this value. What the floor
- * trades away is skin comfort, not silicon safety.
- *
- * Set to 0 to restore stock behaviour. Raising it one bin to 1105000 also
- * blocks the last stage-0 step; 1196000 takes SSRM out of the GPU path
- * entirely. Writable at runtime via
- * /sys/module/mali_kbase/parameters/sysfs_max_lock_floor_khz.
- */
+/* SSRM caps the GPU on skin temperature via this node; 0 = stock behaviour */
 static int sysfs_max_lock_floor_khz = 1001000;
 module_param(sysfs_max_lock_floor_khz, int, 0644);
 MODULE_PARM_DESC(sysfs_max_lock_floor_khz,
@@ -196,11 +158,7 @@ GPEX_STATIC ssize_t set_max_lock_dvfs(const char *buf, size_t count)
 		return -EINVAL;
 	}
 
-	/* Any value <= 0 releases the lock. Only 0 used to, so the -1 that
-	 * releases the min lock was instead rounded down to the lowest entry in
-	 * the table here and silently pinned the GPU ceiling to its minimum
-	 * clock. The two nodes now take the same release value.
-	 */
+	/* -1 is the min lock's release value; treat it as release here too */
 	if (clock <= 0) {
 		clk_info->user_max_lock_input = 0;
 		gpex_clock_lock_clock(GPU_CLOCK_MAX_UNLOCK, SYSFS_LOCK, 0);
@@ -208,9 +166,6 @@ GPEX_STATIC ssize_t set_max_lock_dvfs(const char *buf, size_t count)
 		return count;
 	}
 
-	/* Keep the raw request, so show_max_lock_dvfs still reports what the
-	 * writer asked for next to what was actually applied.
-	 */
 	clk_info->user_max_lock_input = clock;
 
 	if (sysfs_max_lock_floor_khz > 0 && clock < sysfs_max_lock_floor_khz)

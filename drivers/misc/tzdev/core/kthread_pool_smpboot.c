@@ -124,13 +124,7 @@ static int tz_kthread_pool_wait_for_event(unsigned long cpu)
 	DEFINE_WAIT_FUNC(wait, tz_kthread_pool_wake_function);
 
 	for (;;) {
-		/*
-		 * TASK_IDLE, not TASK_UNINTERRUPTIBLE: this is one idle kthread
-		 * per CPU that parks here for the lifetime of the system. In D
-		 * state each of them adds a permanent 1.0 to loadavg, so an
-		 * idle device reports a load of 8. TASK_IDLE still matches the
-		 * TASK_NORMAL wakeup mask used by tz_kthread_pool_wake_up_all().
-		 */
+		/* TASK_UNINTERRUPTIBLE here adds 1.0 to loadavg per CPU for the lifetime of the system */
 		prepare_to_wait(&tz_cmd_waitqueue, &wait, TASK_IDLE);
 		ret = tz_kthread_pool_should_wake(cpu);
 		if (ret != KTHREAD_SHOULD_SLEEP)

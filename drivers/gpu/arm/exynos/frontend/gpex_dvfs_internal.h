@@ -38,15 +38,10 @@
 #define GPEX_DVFS_MIN_POLLING_SPEED 4
 #define GPEX_DVFS_MAX_POLLING_SPEED 1000
 
-/* A fragment job this long alone eats half of a 60Hz frame budget, which is
- * enough evidence that the frame will not land on time.
- */
+/* half of a 60Hz frame budget */
 #define GPEX_DVFS_FRAME_BOOST_JOB_US 8000
 #define GPEX_DVFS_FRAME_BOOST_FRAME_US 0
 #define GPEX_DVFS_FRAME_BOOST_MAX_FRAME_US 33000
-/* Kept short enough that the clock is back at min before the GPU would have
- * power gated anyway, long enough to bridge the gap between two frames.
- */
 #define GPEX_DVFS_FRAME_BOOST_RELEASE_MS 150
 #define GPEX_DVFS_FRAME_BOOST_MAX_JOB_US 33000
 #define GPEX_DVFS_FRAME_BOOST_MAX_RELEASE_MS 1000
@@ -98,9 +93,7 @@ struct dvfs_info {
 		int delay_count;
 	} interactive;
 
-	/* Deadline driven boost. Written from the job completion path (atomics
-	 * only, called under hwaccess_lock), consumed by the dvfs work item.
-	 */
+	/* written under hwaccess_lock, read by the dvfs work item */
 	struct {
 		int clock; /* 0 disables the boost */
 		int job_us;
@@ -109,11 +102,7 @@ struct dvfs_info {
 		atomic64_t last_late_job;
 		atomic_t late_job_cnt;
 
-		/* Per frame GPU busy accounting. Fed the same intervals kbase
-		 * charges to its pm metrics "busy" counter, so this is the union
-		 * of the times any job slot was running rather than a sum over
-		 * atoms, which would overcount slots running in parallel.
-		 */
+		/* union of busy intervals from kbase pm metrics, not a per-atom sum */
 		atomic64_t frame_busy_ns;
 		int last_frame_us;
 		atomic_t late_frame_cnt;

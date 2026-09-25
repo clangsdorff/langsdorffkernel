@@ -1995,17 +1995,7 @@ static void check_connection(void *device_data)
 		goto out;
 	}
 
-	/*
-	* The display framework's touch-poke fallback issues "check_connection"
-	* synchronously on the brightness-apply thread on every screen-on. Taking
-	* ts->lock here serializes behind the resume path, which holds the lock
-	* across a full firmware reload plus mode restore (~230ms), and the
-	* reset-state poll then adds ~110ms of retries -- all of it stalling the
-	* wake before the backlight ramps. The controller is already brought back
-	* up by the resume path, so report the connection as good without
-	* contending the lock or probing the IC. The real open/short factory test
-	* remains available through the dedicated run_open_test command.
-	*/
+	/* display touch-poke runs this on every screen-on; don't contend ts->lock with resume */
 
 	snprintf(buff, sizeof(buff), "%s", "OK");
 	sec->cmd_state = SEC_CMD_STATUS_OK;

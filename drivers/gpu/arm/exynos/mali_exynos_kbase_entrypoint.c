@@ -49,10 +49,7 @@
 
 #include <gpexbe_clock.h>
 
-/* kbase carries pm metrics durations right shifted by KBASE_PM_TIME_SHIFT,
- * that is in units of 256ns. The define lives in a kbase .c file, so the value
- * is repeated here the same way gpexbe_utilization.c already repeats it.
- */
+/* KBASE_PM_TIME_SHIFT, private to kbase: pm metrics are in 256ns units */
 #define MALI_EXYNOS_PM_TIME_SHIFT 8
 
 static int mali_exynos_ioctl_amigo_flags_fn(struct kbase_context *kctx,
@@ -154,9 +151,6 @@ void mali_exynos_update_jobsubmit_time(void)
 {
 	gpex_tsg_update_jobsubmit_time();
 
-	/* The out fence for this frame has been signalled, so the frame is done
-	 * and whatever the GPU spent on it has been accumulated by now.
-	 */
 	gpex_dvfs_notify_frame_end();
 }
 
