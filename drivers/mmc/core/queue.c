@@ -497,7 +497,6 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 	 * more than the sequential gain. Keep it at 256KB.
 	 */
 	mq->queue->backing_dev_info->ra_pages = SZ_256K / PAGE_SIZE;
-	blk_queue_flag_clear(QUEUE_FLAG_IO_STAT, mq->queue);
 	return 0;
 
 free_tag_set:
