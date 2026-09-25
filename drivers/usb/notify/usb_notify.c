@@ -38,7 +38,8 @@
 #define MAX_VAL 0x7FFFFFFF
 
 static int usb_restrict;
-module_param(usb_restrict, int, 0444);
+/* writable so the pn recovery can clear the bootloader restrict before the boot delay expires */
+module_param(usb_restrict, int, 0644);
 
 struct  ovc {
 	struct otg_notify *o_notify;
