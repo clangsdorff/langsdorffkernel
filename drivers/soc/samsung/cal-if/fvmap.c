@@ -344,7 +344,8 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 
 #define OC_PLL_M_STOCK		255
 #define OC_PLL_M_MAX		276
-#define OC_VOLT_MAX_UV		1350000
+#define OC_VOLT_MAX_UV		1300000
+#define OC_G3D_VOLT_MAX_UV	1200000
 #define OC_VOLT_MIN_UV		600000
 #define OC_MAX_LEVEL		32
 
@@ -356,10 +357,15 @@ struct oc_cluster {
 	void __iomem *volt0;
 	u32 orig_pms0;
 	u32 orig_volt0;
+	unsigned int volt_max;
 	bool volt_steps;
 };
 
-static struct oc_cluster oc_cl[2] = { { .idx = -1 }, { .idx = -1 } };
+static struct oc_cluster oc_cl[3] = {
+	{ .idx = -1, .volt_max = OC_VOLT_MAX_UV },
+	{ .idx = -1, .volt_max = OC_VOLT_MAX_UV },
+	{ .idx = -1, .volt_max = OC_G3D_VOLT_MAX_UV },
+};
 static DEFINE_MUTEX(oc_lock);
 
 static u32 oc_field(u32 v, unsigned char shift, unsigned char width)
@@ -397,7 +403,15 @@ static void cpu_oc_setup(void __iomem *sram_base)
 
 	for (i = 0; i < size; i++) {
 		vclk = cmucal_get_node(ACPM_VCLK_TYPE | i);
-		if (!vclk || (vclk->margin_id != MARGIN_CPUCL0 && vclk->margin_id != MARGIN_CPUCL1))
+		if (!vclk)
+			continue;
+		if (vclk->margin_id == MARGIN_CPUCL0)
+			c = &oc_cl[0];
+		else if (vclk->margin_id == MARGIN_CPUCL1)
+			c = &oc_cl[1];
+		else if (vclk->margin_id == MARGIN_G3D)
+			c = &oc_cl[2];
+		else
 			continue;
 		if (!fh[i].num_of_pll || !vclk->num_list || fh[i].o_members & 1 ||
 		    fh[i].o_members + 2 > FVMAP_SIZE)
@@ -414,7 +428,6 @@ static void cpu_oc_setup(void __iomem *sram_base)
 		    fh[i].o_tables + fh[i].num_of_lv * fh[i].num_of_members > FVMAP_SIZE)
 			continue;
 
-		c = &oc_cl[vclk->margin_id - MARGIN_CPUCL0];
 		if (c->idx >= 0)
 			continue;
 		c->idx = i;
@@ -557,7 +570,7 @@ static ssize_t oc_volt0_store(struct oc_cluster *c, const char *buf, size_t coun
 
 	if (c->idx < 0)
 		return -ENODEV;
-	if (kstrtouint(buf, 0, &uv) || uv < OC_VOLT_MIN_UV || uv > OC_VOLT_MAX_UV)
+	if (kstrtouint(buf, 0, &uv) || uv < OC_VOLT_MIN_UV || uv > c->volt_max)
 		return -EINVAL;
 
 	mutex_lock(&oc_lock);
@@ -567,37 +580,40 @@ static ssize_t oc_volt0_store(struct oc_cluster *c, const char *buf, size_t coun
 	return count;
 }
 
-#define oc_attr_ro(cl, name)								\
-static ssize_t cpucl##cl##_##name##_show						\
+#define oc_attr_ro(pfx, cl, name)							\
+static ssize_t pfx##_##name##_show							\
 (struct kobject *kobj, struct kobj_attribute *attr, char *buf)				\
 {											\
 	return oc_##name##_show(&oc_cl[cl], buf);					\
 }											\
-static struct kobj_attribute cpucl##cl##_##name = __ATTR(cpucl##cl##_##name, 0444,	\
-	cpucl##cl##_##name##_show, NULL)
+static struct kobj_attribute pfx##_##name = __ATTR(pfx##_##name, 0444,			\
+	pfx##_##name##_show, NULL)
 
-#define oc_attr_rw(cl, name)								\
-static ssize_t cpucl##cl##_##name##_show						\
+#define oc_attr_rw(pfx, cl, name)							\
+static ssize_t pfx##_##name##_show							\
 (struct kobject *kobj, struct kobj_attribute *attr, char *buf)				\
 {											\
 	return oc_##name##_show(&oc_cl[cl], buf);					\
 }											\
-static ssize_t cpucl##cl##_##name##_store						\
+static ssize_t pfx##_##name##_store							\
 (struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)	\
 {											\
 	return oc_##name##_store(&oc_cl[cl], buf, count);				\
 }											\
-static struct kobj_attribute cpucl##cl##_##name = __ATTR(cpucl##cl##_##name, 0644,	\
-	cpucl##cl##_##name##_show, cpucl##cl##_##name##_store)
+static struct kobj_attribute pfx##_##name = __ATTR(pfx##_##name, 0644,			\
+	pfx##_##name##_show, pfx##_##name##_store)
 
-oc_attr_ro(0, fvmap);
-oc_attr_ro(1, fvmap);
-oc_attr_rw(0, pll_m);
-oc_attr_rw(1, pll_m);
-oc_attr_rw(0, pms0_raw);
-oc_attr_rw(1, pms0_raw);
-oc_attr_rw(0, volt0);
-oc_attr_rw(1, volt0);
+oc_attr_ro(cpucl0, 0, fvmap);
+oc_attr_ro(cpucl1, 1, fvmap);
+oc_attr_ro(g3d, 2, fvmap);
+oc_attr_rw(cpucl0, 0, pll_m);
+oc_attr_rw(cpucl1, 1, pll_m);
+oc_attr_rw(cpucl0, 0, pms0_raw);
+oc_attr_rw(cpucl1, 1, pms0_raw);
+oc_attr_rw(g3d, 2, pms0_raw);
+oc_attr_rw(cpucl0, 0, volt0);
+oc_attr_rw(cpucl1, 1, volt0);
+oc_attr_rw(g3d, 2, volt0);
 
 static struct attribute *cpu_oc_attrs[] = {
 	&cpucl0_fvmap.attr,
@@ -608,6 +624,9 @@ static struct attribute *cpu_oc_attrs[] = {
 	&cpucl1_pms0_raw.attr,
 	&cpucl0_volt0.attr,
 	&cpucl1_volt0.attr,
+	&g3d_fvmap.attr,
+	&g3d_pms0_raw.attr,
+	&g3d_volt0.attr,
 	NULL,
 };
 
