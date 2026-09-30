@@ -2326,21 +2326,26 @@ int fts_charger_attached(struct fts_ts_data *ts_data, bool status)
 }
 
 #if IS_ENABLED(CONFIG_FB)
-int fts_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
+static int fts_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
 	struct fts_ts_data *ts_data = container_of(self, struct fts_ts_data, fb_notif);
 	struct fb_event *evdata = data;
 	int *blank;
 
+	if (ts_data->sysinput_seen)
+		return 0;
+
 	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
 		blank = evdata->data;
 		switch (*blank) {
 		case FB_BLANK_POWERDOWN:
+			cancel_work_sync(&ts_data->resume_work);
 			fts_ts_suspend(ts_data->dev);
 			break;
 		case FB_BLANK_UNBLANK:
-		case FB_BLANK_NORMAL:
-			fts_ts_resume(ts_data->dev);
+			if (ts_data->gesture_mode)
+				fts_ctrl_lcd_reset_regulator(ts_data, false);
+			queue_work(ts_data->ts_workqueue, &ts_data->resume_work);
 			break;
 		default:
 			break;
@@ -2534,15 +2539,15 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 				VBUS_NOTIFY_DEV_CHARGER);
 #endif
 
+	if (ts_data->ts_workqueue) {
+		INIT_WORK(&ts_data->resume_work, fts_resume_work);
+	}
+
 #if IS_ENABLED(CONFIG_FB)
 	ts_data->fb_notif.notifier_call = fts_fb_notifier_callback;
 	if (fb_register_client(&ts_data->fb_notif))
 		FTS_ERROR("register fb_notifier failed");
 #endif
-
-	if (ts_data->ts_workqueue) {
-		INIT_WORK(&ts_data->resume_work, fts_resume_work);
-	}
 
 #if defined(CONFIG_PM) && FTS_PATCH_COMERR_PM
 	init_completion(&ts_data->pm_completion);
@@ -2615,6 +2620,7 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 
 #if IS_ENABLED(CONFIG_FB)
 	fb_unregister_client(&ts_data->fb_notif);
+	cancel_work_sync(&ts_data->resume_work);
 #endif
 
 	cancel_delayed_work_sync(&ts_data->print_info_work);

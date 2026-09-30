@@ -348,6 +348,8 @@ static ssize_t enabled_store(struct device *dev, struct device_attribute *attr,
 
 	FTS_INFO("%d %d", buff[0], buff[1]);
 
+	ts_data->sysinput_seen = true;
+
 	if (buff[0] == DISPLAY_STATE_ON || buff[0] == DISPLAY_STATE_DOZE || buff[0] == DISPLAY_STATE_DOZE_SUSPEND) {
 		if (buff[1] == DISPLAY_EVENT_EARLY) {
 			if (ts_data->gesture_mode) {
