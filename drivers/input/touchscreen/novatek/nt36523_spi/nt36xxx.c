@@ -2823,22 +2823,32 @@ static int nvt_notifier_call(struct notifier_block *n, unsigned long data, void 
 #endif
 
 #if IS_ENABLED(CONFIG_FB)
+static void nvt_fb_resume_work(struct work_struct *work)
+{
+	struct nvt_ts_data *ts = container_of(work, struct nvt_ts_data, fb_resume_work);
+
+	nvt_ts_early_resume(&ts->client->dev);
+	nvt_ts_resume(&ts->client->dev);
+}
+
 static int nvt_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
 	struct nvt_ts_data *ts = container_of(self, struct nvt_ts_data, fb_notif);
 	struct fb_event *evdata = data;
 	int *blank;
 
+	if (ts->sysinput_seen)
+		return 0;
+
 	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
 		blank = evdata->data;
 		switch (*blank) {
 		case FB_BLANK_POWERDOWN:
+			cancel_work_sync(&ts->fb_resume_work);
 			nvt_ts_suspend(&ts->client->dev);
 			break;
 		case FB_BLANK_UNBLANK:
-		case FB_BLANK_NORMAL:
-			nvt_ts_early_resume(&ts->client->dev);
-			nvt_ts_resume(&ts->client->dev);
+			schedule_work(&ts->fb_resume_work);
 			break;
 		default:
 			break;
@@ -3341,6 +3351,7 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 #endif
 
 #if IS_ENABLED(CONFIG_FB)
+	INIT_WORK(&ts->fb_resume_work, nvt_fb_resume_work);
 	ts->fb_notif.notifier_call = nvt_fb_notifier_callback;
 	if (fb_register_client(&ts->fb_notif))
 		input_err(true, &client->dev, "register fb_notifier failed\n");
@@ -3494,6 +3505,7 @@ static int32_t nvt_ts_remove(struct spi_device *client)
 
 #if IS_ENABLED(CONFIG_FB)
 	fb_unregister_client(&ts->fb_notif);
+	cancel_work_sync(&ts->fb_resume_work);
 #endif
 
 #if NVT_TOUCH_ESD_PROTECT
