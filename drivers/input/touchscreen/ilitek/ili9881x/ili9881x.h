@@ -945,6 +945,8 @@ struct ilitek_ts_data {
 	struct delayed_work work_vbus;
 #endif
 	struct notifier_block fb_notif;
+	struct work_struct fb_resume_work;
+	bool sysinput_seen;
 
 	u8 *lpwg_dump_buf;
 	u16 lpwg_dump_buf_idx;
