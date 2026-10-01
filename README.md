@@ -7,7 +7,6 @@
 - Every GPU clock step reachable and holdable. 1105 MHz opens at 65% utilization, 1196 MHz at 70%.
 - Floor under the GPU clock ceiling, default 1001 MHz.
 - Runtime tunables for the GPU ceiling floor and the governor redirect.
-- Updated GPU driver (bifrost r51p0)
 - Official KernelSU v3.3.0 with SUSFS v2.3.0.
 - Dex touchpad support for OneUI ROMs.
 - Removed firmware checks from check_connection in novatek touchscreen driver to fix 2 seconds delay for RestlessOS treble patchset based GSI's
@@ -46,7 +45,6 @@
 - CPU & GPU Overclock, `${fps_position}` hook, updated sdfat driver: [Gabriel2392](https://github.com/Gabriel2392)
 - Dex touchpad support: [rsuntk](https://github.com/rsuntk)
 - KernelSU: [tiann](https://github.com/tiann/)
-- r51p0 driver: [xxmustafacooTR](https://github.com/xxmustafacooTR/)
 
 # Download
 - Download (version)**e** for Enforcing, **en** for no overclock & root variant
