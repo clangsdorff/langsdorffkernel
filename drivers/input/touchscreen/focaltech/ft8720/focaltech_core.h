@@ -311,6 +311,7 @@ struct fts_ts_data {
 	bool ta_status;
 #endif
 	struct notifier_block fb_notif;
+	bool sysinput_seen;
 	bool set_test_fw;
 
 	u8 *lpwg_dump_buf;

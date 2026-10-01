@@ -362,6 +362,8 @@ struct nvt_ts_data {
 #endif
 	struct notifier_block nb;
 	struct notifier_block fb_notif;
+	struct work_struct fb_resume_work;
+	bool sysinput_seen;
 #if IS_ENABLED(CONFIG_VBUS_NOTIFIER)
 	struct notifier_block vbus_nb;
 	struct delayed_work work_vbus;
