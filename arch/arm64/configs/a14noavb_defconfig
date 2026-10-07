@@ -512,7 +512,7 @@ CONFIG_STACKPROTECTOR_PER_TASK=y
 #
 # Boot options
 #
-CONFIG_CMDLINE="stack_depot_disable=on rodata=on kvm-arm.mode=protected cgroup.memory=nokmem elevator=mq-deadline"
+CONFIG_CMDLINE="stack_depot_disable=on rodata=on kvm-arm.mode=protected cgroup.memory=nokmem elevator=mq-deadline earlycon=ramcon,0xf0000000 keep_bootcon"
 # CONFIG_CMDLINE_FROM_BOOTLOADER is not set
 CONFIG_CMDLINE_EXTEND=y
 # CONFIG_CMDLINE_FORCE is not set
@@ -2848,6 +2848,7 @@ CONFIG_SERIAL_OF_PLATFORM=y
 CONFIG_SERIAL_AMBA_PL011=y
 CONFIG_SERIAL_AMBA_PL011_CONSOLE=y
 # CONFIG_SERIAL_EARLYCON_ARM_SEMIHOST is not set
+CONFIG_SERIAL_EARLYCON_RAMCON=y
 CONFIG_SERIAL_SAMSUNG=y
 CONFIG_SERIAL_SAMSUNG_UARTS_4=y
 CONFIG_SERIAL_SAMSUNG_UARTS=4

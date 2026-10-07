@@ -85,6 +85,18 @@ config SERIAL_EARLYCON_ARM_SEMIHOST
 	  with "earlycon=smh" on the kernel command line. The console is
 	  enabled when early_param is processed.
 
+config SERIAL_EARLYCON_RAMCON
+	bool "Early console into a RAM buffer"
+	depends on ARM64
+	select SERIAL_CORE
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Early console for Exynos 850 boards without a reachable UART. Appends
+	  to the debug-snapshot log_kernel ring after the bootloader's log, which
+	  the next boot shows as /proc/last_kmsg. Enabled with
+	  "earlycon=ramcon,<dss header addr>".
+
 config SERIAL_EARLYCON_RISCV_SBI
 	bool "Early console using RISC-V SBI"
 	depends on RISCV_SBI_V01
