@@ -1128,6 +1128,14 @@ static int dbg_snapshot_probe(struct platform_device *pdev)
 	dbg_snapshot_set_enable(true);
 
 	if (dbg_snapshot_get_item_enable(DSS_ITEM_KERNEL)) {
+		struct console *con;
+
+		/* earlycon=ramcon already wrote the boot log into log_kernel; a replay would duplicate it */
+		console_lock();
+		for_each_console(con)
+			if (!strcmp(con->name, "ramcon"))
+				dss_console.flags &= ~CON_PRINTBUFFER;
+		console_unlock();
 		register_console(&dss_console);
 		console_suspend_enabled = false;
 	}
