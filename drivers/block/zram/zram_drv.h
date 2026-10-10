@@ -58,6 +58,7 @@ enum zram_pageflags {
 	ZRAM_PPR,
 	ZRAM_UNDER_PPR,
 	ZRAM_LRU,
+	ZRAM_RECOMP_AGED, /* survived one periodic recompression pass */
 	ZRAM_INCOMPRESSIBLE, /* none of the algorithms could compress it */
 	ZRAM_COMP_PRIORITY_BIT1, /* First bit of comp priority index */
 	ZRAM_COMP_PRIORITY_BIT2, /* Second bit of comp priority index */
@@ -180,6 +181,7 @@ struct zram {
 	struct zcomp *recomps[ZRAM_MAX_COMPS];
 	char recomp_algs[ZRAM_MAX_COMPS][CRYPTO_MAX_ALG_NAME];
 	s8 num_active_comps;
+	struct delayed_work recomp_work;
 #endif
 	struct gendisk *disk;
 	/* Prevent concurrent execution of device init */

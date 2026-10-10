@@ -2973,6 +2973,75 @@ out:
 	kfree(tmp);
 	return ret;
 }
+
+static unsigned int recomp_interval_sec = 600;
+module_param(recomp_interval_sec, uint, 0644);
+
+static void zram_recompress_aged(struct zram *zram)
+{
+	unsigned long nr_pages;
+	unsigned long index;
+	struct page *page;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return;
+
+	down_read(&zram->init_lock);
+	if (!init_done(zram) || zram->num_active_comps < 2)
+		goto out;
+
+	nr_pages = zram->disksize >> PAGE_SHIFT;
+	for (index = 0; index < nr_pages; index++) {
+		int err = 0;
+
+#ifdef CONFIG_ZRAM_LRU_WRITEBACK
+		if (READ_ONCE(is_app_launch))
+			break;
+#endif
+		zram_slot_lock(zram, index);
+
+		if (!zram_allocated(zram, index) ||
+		    zram_test_flag(zram, index, ZRAM_WB) ||
+		    zram_test_flag(zram, index, ZRAM_UNDER_WB) ||
+		    zram_test_flag(zram, index, ZRAM_SAME) ||
+		    zram_test_flag(zram, index, ZRAM_INCOMPRESSIBLE) ||
+		    zram_test_flag(zram, index, ZRAM_UNDER_PPR) ||
+		    zram_get_priority(zram, index))
+			goto next;
+
+		if (!zram_test_flag(zram, index, ZRAM_RECOMP_AGED)) {
+			zram_set_flag(zram, index, ZRAM_RECOMP_AGED);
+			goto next;
+		}
+
+		err = zram_recompress(zram, index, page, 0,
+				      ZRAM_SECONDARY_COMP, ZRAM_MAX_COMPS);
+next:
+		zram_slot_unlock(zram, index);
+		if (err)
+			break;
+
+		cond_resched();
+	}
+out:
+	up_read(&zram->init_lock);
+	__free_page(page);
+}
+
+static void zram_recomp_workfn(struct work_struct *work)
+{
+	struct zram *zram = container_of(to_delayed_work(work), struct zram,
+					 recomp_work);
+	unsigned int interval = READ_ONCE(recomp_interval_sec);
+
+	if (interval)
+		zram_recompress_aged(zram);
+
+	queue_delayed_work(system_freezable_power_efficient_wq,
+			   &zram->recomp_work,
+			   (interval ? interval : 60) * HZ);
+}
 #endif
 
 static ssize_t compact_store(struct device *dev,
@@ -3187,6 +3256,7 @@ static void zram_free_page(struct zram *zram, size_t index)
 		zram_clear_flag(zram, index, ZRAM_IDLE);
 
 	zram_clear_flag(zram, index, ZRAM_INCOMPRESSIBLE);
+	zram_clear_flag(zram, index, ZRAM_RECOMP_AGED);
 	zram_set_priority(zram, index, 0);
 
 	if (zram_test_flag(zram, index, ZRAM_HUGE)) {
@@ -3805,6 +3875,10 @@ static void zram_reset_device(struct zram *zram)
 	struct zcomp *comp;
 	u64 disksize;
 
+#ifdef CONFIG_ZRAM_MULTI_COMP
+	cancel_delayed_work_sync(&zram->recomp_work);
+#endif
+
 	down_write(&zram->init_lock);
 
 	zram->limit_pages = 0;
@@ -3895,6 +3969,11 @@ static ssize_t disksize_store(struct device *dev,
 	zram->comp = comp;
 	zram->disksize = disksize;
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
+#ifdef CONFIG_ZRAM_MULTI_COMP
+	queue_delayed_work(system_freezable_power_efficient_wq,
+			   &zram->recomp_work,
+			   READ_ONCE(recomp_interval_sec) * HZ);
+#endif
 
 	revalidate_disk_size(zram->disk, true);
 	up_write(&zram->init_lock);
@@ -4173,6 +4252,11 @@ static int zram_add(void)
 	device_add_disk(NULL, zram->disk, zram_disk_attr_groups);
 
 	strlcpy(zram->compressor, default_compressor, sizeof(zram->compressor));
+#ifdef CONFIG_ZRAM_MULTI_COMP
+	strscpy(zram->recomp_algs[ZRAM_SECONDARY_COMP], "zstd",
+		CRYPTO_MAX_ALG_NAME);
+	INIT_DELAYED_WORK(&zram->recomp_work, zram_recomp_workfn);
+#endif
 
 	zram_debugfs_register(zram);
 	pr_info("Added device: %s\n", zram->disk->disk_name);
