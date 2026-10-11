@@ -2977,6 +2977,8 @@ out:
 static unsigned int recomp_interval_sec = 600;
 module_param(recomp_interval_sec, uint, 0644);
 
+static struct workqueue_struct *zram_recomp_wq;
+
 static void zram_recompress_aged(struct zram *zram)
 {
 	unsigned long nr_pages;
@@ -3038,7 +3040,7 @@ static void zram_recomp_workfn(struct work_struct *work)
 	if (interval)
 		zram_recompress_aged(zram);
 
-	queue_delayed_work(system_freezable_power_efficient_wq,
+	queue_delayed_work(zram_recomp_wq,
 			   &zram->recomp_work,
 			   (interval ? interval : 60) * HZ);
 }
@@ -3970,7 +3972,7 @@ static ssize_t disksize_store(struct device *dev,
 	zram->disksize = disksize;
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 #ifdef CONFIG_ZRAM_MULTI_COMP
-	queue_delayed_work(system_freezable_power_efficient_wq,
+	queue_delayed_work(zram_recomp_wq,
 			   &zram->recomp_work,
 			   READ_ONCE(recomp_interval_sec) * HZ);
 #endif
@@ -4394,6 +4396,9 @@ static void destroy_devices(void)
 	zram_debugfs_destroy();
 	idr_destroy(&zram_index_idr);
 	unregister_blkdev(zram_major, "zram");
+#ifdef CONFIG_ZRAM_MULTI_COMP
+	destroy_workqueue(zram_recomp_wq);
+#endif
 	cpuhp_remove_multi_state(CPUHP_ZCOMP_PREPARE);
 }
 
@@ -4413,10 +4418,24 @@ static int __init zram_init(void)
 		return ret;
 	}
 
+#ifdef CONFIG_ZRAM_MULTI_COMP
+	/* a full pass runs for minutes; on a per-cpu pool it starves that cpu's work items */
+	zram_recomp_wq = alloc_workqueue("zram_recomp",
+					 WQ_UNBOUND | WQ_FREEZABLE, 1);
+	if (!zram_recomp_wq) {
+		class_unregister(&zram_control_class);
+		cpuhp_remove_multi_state(CPUHP_ZCOMP_PREPARE);
+		return -ENOMEM;
+	}
+#endif
+
 	zram_debugfs_create();
 	zram_major = register_blkdev(0, "zram");
 	if (zram_major <= 0) {
 		pr_err("Unable to get major number\n");
+#ifdef CONFIG_ZRAM_MULTI_COMP
+		destroy_workqueue(zram_recomp_wq);
+#endif
 		class_unregister(&zram_control_class);
 		cpuhp_remove_multi_state(CPUHP_ZCOMP_PREPARE);
 		return -EBUSY;
