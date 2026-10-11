@@ -1,6 +1,12 @@
 #!/bin/bash
 
-XY_VERSION="@3.8.5p"
+if [ -z "$XY_TAG" ]; then
+    XY_TAG=$(git describe --tags --abbrev=0)
+fi
+XY_VERSION="@${XY_TAG}p"
+if [ "$(git branch --show-current)" = "no-oc-root" ]; then
+    XY_VERSION="${XY_VERSION}n"
+fi
 
 set -e
 
