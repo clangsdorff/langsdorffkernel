@@ -24,6 +24,7 @@
 #include "ksu.h"
 #include "runtime/ksud.h"
 #include "runtime/ksud_boot.h"
+#include "policy/feature.h"
 #include "selinux/selinux.h"
 
 DEFINE_STATIC_KEY_TRUE(ksu_is_init_rc_hook_enabled);
@@ -161,6 +162,8 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
                 apply_kernelsu_rules();
                 cache_sid();
                 setup_ksu_cred();
+                // after apply_kernelsu_rules, so that selinux_hide has its sepolicy backup
+                ksu_feature_apply_forced();
                 static_branch_disable(&is_init_second_stage_not_executed);
             }
         }

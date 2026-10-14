@@ -23,6 +23,8 @@
 #include "selinux/selinux.h"
 #include "feature/adb_root.h"
 #include "feature/selinux_hide.h"
+#include "feature/module_blacklist.h"
+#include "feature/shell_su_adb_only.h"
 #include "hook/setuid_hook.h"
 #include "feature/sucompat.h"
 
@@ -76,6 +78,7 @@ module_param_named(norc, ksu_no_custom_rc, bool, 0);
 
 int __init kernelsu_init(void)
 {
+    pr_info("welcome to KernelSU version " __stringify(KERNEL_SU_VERSION) ", package name " KSU_PACKAGE_NAME "\n");
 #ifdef CONFIG_KSU_DEBUG
     pr_alert("*************************************************************");
     pr_alert("**     NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE    **");
@@ -100,6 +103,8 @@ int __init kernelsu_init(void)
     susfs_init();
 #endif // #ifdef KSU_SUSFS
 
+    ksu_module_blacklist_init();
+
     ksu_feature_init();
 
     ksu_supercalls_init();
@@ -113,6 +118,8 @@ int __init kernelsu_init(void)
     ksu_adb_root_init();
 
     ksu_selinux_hide_init();
+
+    ksu_shell_su_adb_only_init();
 
     ksu_allowlist_init();
 
@@ -141,6 +148,8 @@ void __exit kernelsu_exit(void)
 
     ksu_allowlist_exit();
 
+    ksu_shell_su_adb_only_exit();
+
     ksu_selinux_hide_exit();
 
     ksu_adb_root_exit();
@@ -148,6 +157,8 @@ void __exit kernelsu_exit(void)
     ksu_sulog_exit();
 
     ksu_feature_exit();
+
+    ksu_module_blacklist_exit();
 
     put_cred(ksu_cred);
 }

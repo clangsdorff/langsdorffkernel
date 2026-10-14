@@ -26,7 +26,7 @@
 #include "feature/sucompat.h"
 #include "feature/adb_root.h"
 #include "policy/app_profile.h"
-#include "hook/syscall_hook.h"
+#include "supercall/supercall.h"
 #include "sulog/event.h"
 #include "uapi/sulog.h"
 
@@ -176,44 +176,56 @@ int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
     int ret;
 
     if (unlikely(!filename_ptr))
-        return 0;
+        return -EINVAL;
 
     filename = *filename_ptr;
     if (IS_ERR(filename))
-        return 0;
+        return -EINVAL;
 
     if (!ksu_handle_execveat_init(filename, (struct user_arg_ptr*)argv_user, (struct user_arg_ptr*)envp_user))
-        return 0;
+        return -EINVAL;
 
-    if (!(__ksu_is_allow_uid_for_current(current_uid().val)))
-        return 0;
+    if (likely(!__ksu_is_allow_uid_for_current(current_uid().val)))
+        return -EINVAL;
 
     if (likely(memcmp(filename->name, su_path, sizeof(su_path))))
-        return 0;
+        return -EINVAL;
 
     if (current_chrooted())
     {
         pr_err("ksu_handle_execveat_sucompat: su found but NOT allowed! Because current process is running in chrooted environment\n");
-        return 0;
+        return -EINVAL;
     }
 
-    pr_info("ksu_handle_execveat_sucompat: su found\n");
+    ret = escape_with_root_profile();
 
+    pr_info("ksu_handle_execveat_sucompat: su->ksud!\n");
     memcpy((void *)filename->name, ksud_path, sizeof(ksud_path));
 
     pending_sucompat = ksu_sulog_capture_sucompat(filename->name, (struct user_arg_ptr*)argv_user, GFP_KERNEL);
 
-    ret = escape_with_root_profile();
-    if (ret)
-        pr_err("escape_with_root_profile() failed: %d\n", ret);
-
     const char __user *argv_user_ptr = get_user_arg_ptr(*((struct user_arg_ptr*)argv_user), 0);
     if (!argv_user_ptr || IS_ERR(argv_user_ptr)) {
         pr_err("!argv_user_ptr || IS_ERR(argv_user_ptr)\n");
-        return 0;
+        return -EINVAL;
     }
 
     ksu_sulog_emit_pending(pending_sucompat, ret, GFP_KERNEL);
+
+    if (ret) {
+        pr_err("escape_with_root_profile() failed: %d\n", ret);
+        return -EINVAL;
+    }
+    return 0;
+}
+
+int ksu_handle_post_execveat_sucompat(int *fd, struct filename **filename_ptr,
+                 void *argv_user, void *envp_user,
+                 int *__never_use_flags, int *retval)
+{
+    if (*retval >= 0) {
+        (void)ksu_install_su_fd();
+    }
     return 0;
 }
 
@@ -243,6 +255,7 @@ int ksu_handle_faccessat(int *dfd, struct filename **filename, int *mode,
         pr_err("ksu_handle_faccessat: su found but NOT allowed! Because current process is running in chrooted environment\n");
         return 0;
     }
+
     pr_info("ksu_handle_faccessat: su->sh!\n");
     memcpy((void *)((*filename)->name), sh_path, sizeof(sh_path));
     return 0;
@@ -260,6 +273,7 @@ int ksu_handle_stat(int *dfd, struct filename **filename, int *flags) {
         pr_err("ksu_handle_stat: su found but NOT allowed! Because current process is running in chrooted environment\n");
         return 0;
     }
+
     pr_info("ksu_handle_stat: su->sh!\n");
     memcpy((void *)((*filename)->name), sh_path, sizeof(sh_path));
     return 0;
