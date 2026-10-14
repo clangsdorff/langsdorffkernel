@@ -228,7 +228,11 @@ static void inet_rcu_free_ifa(struct rcu_head *head)
 
 static void inet_free_ifa(struct in_ifaddr *ifa)
 {
-	call_rcu(&ifa->rcu_head, inet_rcu_free_ifa);
+	/* Our reference to ifa->ifa_dev must be freed ASAP
+	 * to release the reference to the netdev the same way.
+	 * in_dev_put() -> in_dev_finish_destroy() -> dev_put()
+	 */
+	call_rcu_hurry(&ifa->rcu_head, inet_rcu_free_ifa);
 }
 
 void in_dev_finish_destroy(struct in_device *idev)
