@@ -447,6 +447,7 @@ regular_page:
 			unlock_page(page);
 			put_page(page);
 			pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+			flush_tlb_batched_pending(mm);
 			pte--;
 			addr -= PAGE_SIZE;
 			continue;
@@ -887,6 +888,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 			unlock_page(page);
 			put_page(page);
 			pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+			flush_tlb_batched_pending(mm);
 			pte--;
 			addr -= PAGE_SIZE;
 			continue;
