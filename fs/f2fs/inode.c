@@ -266,22 +266,6 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		return false;
 	}
 
-	if (F2FS_I(inode)->extent_tree) {
-		struct extent_info *ei = &F2FS_I(inode)->extent_tree->largest;
-
-		if (ei->len &&
-			(!f2fs_is_valid_blkaddr(sbi, ei->blk,
-						DATA_GENERIC_ENHANCE) ||
-			!f2fs_is_valid_blkaddr(sbi, ei->blk + ei->len - 1,
-						DATA_GENERIC_ENHANCE))) {
-			set_sbi_flag(sbi, SBI_NEED_FSCK);
-			f2fs_warn(sbi, "%s: inode (ino=%lx) extent info [%u, %u, %u] is incorrect, run fsck to fix",
-				  __func__, inode->i_ino,
-				  ei->blk, ei->fofs, ei->len);
-			return false;
-		}
-	}
-
 	if (f2fs_sanity_check_inline_data(inode)) {
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_warn(sbi, "%s: inode (ino=%lx, mode=%u) should not have inline_data, run fsck to fix",
@@ -395,8 +379,6 @@ static int do_read_inode(struct inode *inode)
 	fi->i_pino = le32_to_cpu(ri->i_pino);
 	fi->i_dir_level = ri->i_dir_level;
 
-	f2fs_init_extent_tree(inode, node_page);
-
 	get_inline_info(inode, ri);
 
 	fi->i_extra_isize = f2fs_has_extra_attr(inode) ?
@@ -490,6 +472,15 @@ static int do_read_inode(struct inode *inode)
 				0, F2FS_BLKSIZE);
 		f2fs_bug_on(sbi, 1);
 	}
+
+	if (!sanity_check_extent_cache(inode, node_page)) {
+		f2fs_put_page(node_page, 1);
+		return -EFSCORRUPTED;
+	}
+
+	/* Need all the flag bits */
+	f2fs_init_read_extent_tree(inode, node_page);
+	f2fs_init_age_extent_tree(inode);
 
 	f2fs_put_page(node_page, 1);
 
@@ -599,7 +590,7 @@ retry:
 void f2fs_update_inode(struct inode *inode, struct page *node_page)
 {
 	struct f2fs_inode *ri;
-	struct extent_tree *et = F2FS_I(inode)->extent_tree;
+	struct extent_tree *et = F2FS_I(inode)->extent_tree[EX_READ];
 
 	f2fs_wait_on_page_writeback(node_page, NODE, true, true);
 	set_page_dirty(node_page);
@@ -618,7 +609,7 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 
 	if (et) {
 		read_lock(&et->lock);
-		set_raw_extent(&et->largest, &ri->i_ext);
+		set_raw_read_extent(&et->largest, &ri->i_ext);
 		read_unlock(&et->lock);
 	} else {
 		memset(&ri->i_ext, 0, sizeof(ri->i_ext));
