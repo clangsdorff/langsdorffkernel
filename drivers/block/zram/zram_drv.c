@@ -1291,9 +1291,7 @@ static int zram_writeback_fill_page(struct zram *zram, u32 index,
 			!zram_test_flag(zram, index, ZRAM_IDLE) ||
 			zram_test_flag(zram, index, ZRAM_WB) ||
 			zram_test_flag(zram, index, ZRAM_SAME) ||
-			zram_test_flag(zram, index, ZRAM_UNDER_WB) ||
-			/* bdev reads decompress with the primary algorithm */
-			zram_get_priority(zram, index)) {
+			zram_test_flag(zram, index, ZRAM_UNDER_WB)) {
 		zram_slot_unlock(zram, index);
 		return 0;
 	}
@@ -1434,6 +1432,8 @@ static void zram_writeback_done(struct zram *zram,
 		atomic64_add(count, &zram->stats.bd_ppr_objcnt);
 
 	for (i = 0; i < count; i++) {
+		u32 prio;
+
 		index = entry[i].index;
 		offset = entry[i].offset;
 		size = entry[i].size;
@@ -1457,9 +1457,12 @@ static void zram_writeback_done(struct zram *zram,
 			continue;
 		}
 
+		prio = zram_get_priority(zram, index);
 		zram_free_page(zram, index);
 		zram_clear_flag(zram, index, ZRAM_UNDER_WB);
 		zram_set_flag(zram, index, ZRAM_WB);
+		/* the packed object keeps its algorithm, bdev reads need it */
+		zram_set_priority(zram, index, prio);
 		atomic64_add(size, &zram->stats.bd_size);
 		if (ppr) {
 			zram_set_flag(zram, index, ZRAM_PPR);
@@ -2188,7 +2191,7 @@ static void zram_handle_remain(struct zram *zram, struct page **pages,
 	unsigned int offset = 0;
 	unsigned int size;
 	int header_sz = sizeof(struct zram_wb_header);
-	u32 index;
+	u32 index, prio;
 	u8 *mem, *dst;
 	struct hex_dump_pages hdp;
 
@@ -2245,9 +2248,11 @@ static void zram_handle_remain(struct zram *zram, struct page **pages,
 		zs_unmap_object(zram->mem_pool, handle);
 
 		atomic64_add(size, &zram->stats.compr_data_size);
+		prio = zram_get_priority(zram, index);
 		zram_free_page(zram, index);
 		zram_set_element(zram, index, handle);
 		zram_set_obj_size(zram, index, size);
+		zram_set_priority(zram, index, prio);
 		spin_lock_irqsave(&zram->list_lock, flags);
 		list_add_tail(&zram->table[index].lru_list, &zram->list);
 		spin_unlock_irqrestore(&zram->list_lock, flags);
@@ -2279,6 +2284,7 @@ static void zram_handle_comp_page(struct work_struct *work)
 	struct zram_wb_header *zhdr;
 	struct zram *zram = zw->zram;
 	struct zcomp_strm *zstrm;
+	struct zcomp *comp;
 	struct page **src_page = zw->src_page;
 	struct page *dst_page = zw->dst_page;
 	struct bio *bio = zw->bio;
@@ -2316,7 +2322,10 @@ static void zram_handle_comp_page(struct work_struct *work)
 	}
 
 	dst = kmap_atomic(dst_page);
-	zstrm = zcomp_stream_get(zram->comp);
+	zram_slot_lock(zram, index);
+	comp = zram_get_comp(zram, zram_get_priority(zram, index));
+	zram_slot_unlock(zram, index);
+	zstrm = zcomp_stream_get(comp);
 	spanned = (offset + header_sz + size > PAGE_SIZE) ? true : false;
 	if (spanned) {
 		kunmap_atomic(src);
@@ -2332,7 +2341,7 @@ static void zram_handle_comp_page(struct work_struct *work)
 	}
 	ret = zcomp_decompress(zstrm, src_decomp, size, dst);
 out_huge:
-	zcomp_stream_put(zram->comp);
+	zcomp_stream_put(comp);
 	if (ret) {
 		struct hex_dump_pages hdp;
 
@@ -2756,6 +2765,10 @@ static int zram_recompress(struct zram *zram, u32 index, struct page *page,
 	u32 num_recomps = 0;
 	void *src, *dst;
 	int ret;
+#ifdef CONFIG_ZRAM_LRU_WRITEBACK
+	unsigned long flags;
+	bool lru;
+#endif
 
 	handle_old = zram_get_handle(zram, index);
 	if (!handle_old)
@@ -2828,10 +2841,23 @@ static int zram_recompress(struct zram *zram, u32 index, struct page *page,
 
 	zs_unmap_object(zram->mem_pool, handle_new);
 
+#ifdef CONFIG_ZRAM_LRU_WRITEBACK
+	lru = zram_test_flag(zram, index, ZRAM_LRU);
+#endif
 	zram_free_page(zram, index);
 	zram_set_handle(zram, index, handle_new);
 	zram_set_obj_size(zram, index, comp_len_new);
 	zram_set_priority(zram, index, prio);
+#ifdef CONFIG_ZRAM_LRU_WRITEBACK
+	/* aged slot: requeue as the coldest writeback candidate */
+	if (lru) {
+		spin_lock_irqsave(&zram->list_lock, flags);
+		list_add(&zram->table[index].lru_list, &zram->list);
+		spin_unlock_irqrestore(&zram->list_lock, flags);
+		zram_set_flag(zram, index, ZRAM_LRU);
+		atomic64_inc(&zram->stats.lru_pages);
+	}
+#endif
 
 	atomic64_add(comp_len_new, &zram->stats.compr_data_size);
 	atomic64_inc(&zram->stats.pages_stored);
