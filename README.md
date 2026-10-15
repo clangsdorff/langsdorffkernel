@@ -20,6 +20,9 @@
 - Floor under the GPU clock ceiling.
 - KernelSU & SUSFS
 
+**Recommendation**
+- On One UI ROMs, disabling RAM Plus is recommended for better performance.
+
 **Known Issues**
 - Nothing.
 
