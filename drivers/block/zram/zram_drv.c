@@ -3016,7 +3016,8 @@ static void zram_recompress_aged(struct zram *zram)
 		return;
 
 	down_read(&zram->init_lock);
-	if (!init_done(zram) || zram->num_active_comps < 2)
+	if (!init_done(zram) || zram->num_active_comps < 2 ||
+	    zram->backing_dev)
 		goto out;
 
 	nr_pages = zram->disksize >> PAGE_SHIFT;
