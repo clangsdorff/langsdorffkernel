@@ -7,7 +7,7 @@
 - Every GPU clock step reachable and holdable. 1105 MHz opens at 65% utilization, 1196 MHz at 70%.
 - Floor under the GPU clock ceiling, default 1001 MHz.
 - Runtime tunables for the GPU ceiling floor and the governor redirect.
-- Official KernelSU v3.3.0 with SUSFS v2.3.0.
+- Official KernelSU v3.3.1 with SUSFS v2.3.0.
 - Dex touchpad support for OneUI ROMs.
 - Removed firmware checks from check_connection in novatek touchscreen driver to fix 2 seconds delay for RestlessOS treble patchset based GSI's
 - Built-in hook for the `${fps_position}` bug in flagship FOD ports.
@@ -19,6 +19,9 @@
 - CPU & GPU overclock.
 - Floor under the GPU clock ceiling.
 - KernelSU & SUSFS
+
+**Recommendation**
+- On One UI ROMs, disabling RAM Plus is recommended for better performance.
 
 **Known Issues**
 - Nothing.
