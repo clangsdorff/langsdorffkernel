@@ -14,6 +14,7 @@
 #include "cmucal.h"
 #include "vclk.h"
 #include "ra.h"
+#include "acpm_dvfs.h"
 
 #define FVMAP_SIZE		(SZ_8K)
 #define STEP_UV			(6250)
@@ -348,10 +349,23 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 #define OC_G3D_VOLT_MAX_UV	1200000
 #define OC_VOLT_MIN_UV		600000
 #define OC_MAX_LEVEL		32
+#define OC_STOCK_RATE		2210000
+#define OC_BOUNCE_RATE		2106000
+#define OC_STEP_VOLT_UV		1300000
+
+static const struct {
+	unsigned int rate;
+	unsigned int m;
+} oc_steps[] = {
+	{ 2314000, 267 },
+	{ 2418000, 279 },
+};
 
 struct oc_cluster {
 	int idx;
 	struct cmucal_pll *pll;
+	unsigned int pll_id;
+	unsigned int cur_rate;
 	void __iomem *pll_hdr;
 	void __iomem *pms0;
 	void __iomem *volt0;
@@ -362,8 +376,8 @@ struct oc_cluster {
 };
 
 static struct oc_cluster oc_cl[3] = {
-	{ .idx = -1, .volt_max = OC_VOLT_MAX_UV },
-	{ .idx = -1, .volt_max = OC_VOLT_MAX_UV },
+	{ .idx = -1, .volt_max = OC_VOLT_MAX_UV, .cur_rate = OC_STOCK_RATE },
+	{ .idx = -1, .volt_max = OC_VOLT_MAX_UV, .cur_rate = OC_STOCK_RATE },
 	{ .idx = -1, .volt_max = OC_G3D_VOLT_MAX_UV },
 };
 static DEFINE_MUTEX(oc_lock);
@@ -441,8 +455,10 @@ static void cpu_oc_setup(void __iomem *sram_base)
 		c->volt_steps = c->orig_volt0 < 1000;
 
 		clk = cmucal_get_node(vclk->list[0]);
-		if (clk && IS_PLL(clk->id))
+		if (clk && IS_PLL(clk->id)) {
 			c->pll = to_pll_clk(clk);
+			c->pll_id = clk->id;
+		}
 
 		if (c->pms0)
 			c->orig_pms0 = readl(c->pms0);
@@ -450,6 +466,82 @@ static void cpu_oc_setup(void __iomem *sram_base)
 		pr_info("cpu_oc: %s idx %d hdr 0x%x level %u lv0_idx %u pms0 0x%08x volt0 %u\n",
 			vclk->name, i, hdr_off, level, lv0_idx, c->orig_pms0, c->orig_volt0);
 	}
+}
+
+static struct oc_cluster *oc_cpu_cluster(unsigned int id)
+{
+	int i;
+
+	for (i = 0; i < 2; i++)
+		if (oc_cl[i].idx >= 0 && oc_cl[i].idx == GET_IDX(id))
+			return &oc_cl[i];
+
+	return NULL;
+}
+
+int fvmap_cpu_oc_set_rate(unsigned int id, unsigned long rate)
+{
+	struct oc_cluster *c = oc_cpu_cluster(id);
+	unsigned int idx = GET_IDX(id);
+	u32 pms, volt;
+	bool dirty;
+	int i, ret;
+
+	if (!c || !c->pms0 || !oc_pms_is_stock(c))
+		return -ENODEV;
+
+	pms = c->orig_pms0;
+	volt = c->orig_volt0;
+	for (i = 0; i < ARRAY_SIZE(oc_steps); i++) {
+		if (rate != oc_steps[i].rate)
+			continue;
+		pms &= ~get_mask(c->pll->m_width, c->pll->m_shift);
+		pms |= oc_steps[i].m << c->pll->m_shift;
+		volt = c->volt_steps ? DIV_ROUND_UP(OC_STEP_VOLT_UV, STEP_UV) : OC_STEP_VOLT_UV;
+		break;
+	}
+
+	dirty = readl(c->pms0) != pms || readl(c->volt0) != volt;
+
+	/* ACPM reprograms level 0 from SRAM only on a level change, so never patch it while there */
+	if (rate < OC_STOCK_RATE) {
+		ret = exynos_acpm_set_rate(idx, rate);
+		if (ret)
+			return ret;
+		c->cur_rate = rate;
+		if (dirty) {
+			writel(pms, c->pms0);
+			writel(volt, c->volt0);
+		}
+		return 0;
+	}
+
+	if (dirty) {
+		if (c->cur_rate >= OC_STOCK_RATE) {
+			ret = exynos_acpm_set_rate(idx, OC_BOUNCE_RATE);
+			if (ret)
+				return ret;
+			c->cur_rate = OC_BOUNCE_RATE;
+		}
+		writel(pms, c->pms0);
+		writel(volt, c->volt0);
+	}
+
+	ret = exynos_acpm_set_rate(idx, OC_STOCK_RATE);
+	if (!ret)
+		c->cur_rate = rate;
+
+	return ret;
+}
+
+unsigned long fvmap_cpu_oc_get_rate(unsigned int id)
+{
+	struct oc_cluster *c = oc_cpu_cluster(id);
+
+	if (!c || !c->pll_id)
+		return 0;
+
+	return ra_recalc_rate(c->pll_id) / 1000;
 }
 
 static ssize_t oc_fvmap_show(struct oc_cluster *c, char *buf)

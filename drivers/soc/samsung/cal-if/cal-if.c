@@ -67,7 +67,9 @@ int cal_dfs_set_rate(unsigned int id, unsigned long rate)
 	int ret;
 
 	if (IS_ACPM_VCLK(id)) {
-		ret = exynos_acpm_set_rate(GET_IDX(id), rate);
+		ret = fvmap_cpu_oc_set_rate(id, rate);
+		if (ret == -ENODEV)
+			ret = exynos_acpm_set_rate(GET_IDX(id), rate);
 		if (!ret) {
 			vclk = cmucal_get_node(id);
 			if (vclk)
@@ -116,6 +118,8 @@ unsigned long cal_dfs_get_rate(unsigned int id)
 	unsigned long ret;
 
 	ret = vclk_recalc_rate(id);
+	if (!ret && IS_ACPM_VCLK(id))
+		ret = fvmap_cpu_oc_get_rate(id);
 
 	return ret;
 }

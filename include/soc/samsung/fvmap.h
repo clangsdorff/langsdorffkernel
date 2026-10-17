@@ -66,6 +66,8 @@ extern int fvmap_init(void __iomem *sram_base);
 extern int fvmap_get_voltage_table(unsigned int id, unsigned int *table);
 extern int fvmap_get_freq_volt_table(unsigned int id, void *freq_volt_table,
 		unsigned int table_size);
+extern int fvmap_cpu_oc_set_rate(unsigned int id, unsigned long rate);
+extern unsigned long fvmap_cpu_oc_get_rate(unsigned int id);
 #else
 static inline int fvmap_init(void __iomem *sram_base)
 {
@@ -78,6 +80,16 @@ static inline int fvmap_get_voltage_table(unsigned int id, unsigned int *table)
 }
 static inline int fvmap_get_freq_volt_table(unsigned int id, void *freq_volt_table,
 		unsigned int table_size)
+{
+	return 0;
+}
+
+static inline int fvmap_cpu_oc_set_rate(unsigned int id, unsigned long rate)
+{
+	return -ENODEV;
+}
+
+static inline unsigned long fvmap_cpu_oc_get_rate(unsigned int id)
 {
 	return 0;
 }
