@@ -2948,6 +2948,7 @@
 	ems {
 		compatible = "samsung,ems";
 		status = "okay";
+		topapp-prefer-cpus = "4-7";
 
 		pe-list {
 

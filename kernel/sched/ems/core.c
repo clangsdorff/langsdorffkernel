@@ -4,6 +4,7 @@
  * Copyright (C) 2020 Samsung Electronics Co., Ltd
  */
 
+#include <linux/moduleparam.h>
 #include <dt-bindings/soc/samsung/ems.h>
 
 #include "../sched.h"
@@ -1233,6 +1234,36 @@ out:
 	return cpumask_weight(&env->cpus_allowed);
 }
 
+static struct cpumask topapp_prefer_cpus;
+static bool topapp_prefer = true;
+module_param(topapp_prefer, bool, 0644);
+
+static int find_topapp_prefer_cpu(struct tp_env *env)
+{
+	unsigned int min_exit_latency = UINT_MAX;
+	int cpu, best_cpu = INVALID_CPU;
+
+	if (!topapp_prefer || env->cgroup_idx != CGROUP_TOPAPP)
+		return INVALID_CPU;
+
+	rcu_read_lock();
+	for_each_cpu_and(cpu, &env->fit_cpus, &topapp_prefer_cpus) {
+		unsigned int exit_latency;
+
+		if (!available_idle_cpu(cpu))
+			continue;
+
+		exit_latency = get_idle_exit_latency(cpu_rq(cpu));
+		if (exit_latency < min_exit_latency) {
+			min_exit_latency = exit_latency;
+			best_cpu = cpu;
+		}
+	}
+	rcu_read_unlock();
+
+	return best_cpu;
+}
+
 extern char *fair_causes_name[END_OF_FAIR_CAUSES];
 int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu,
 			   int sd_flag, int wake_flag)
@@ -1296,6 +1327,12 @@ int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu,
 		goto out;
 	}
 
+	target_cpu = find_topapp_prefer_cpu(&env);
+	if (cpu_selected(target_cpu)) {
+		env.reason_of_selection = FAIR_TOPAPP_PREFER;
+		goto out;
+	}
+
 	target_cpu = find_best_cpu(&env);
 
 	if (cpu_selected(target_cpu)) {
@@ -1323,6 +1360,7 @@ out:
 int core_init(struct device_node *ems_dn)
 {
 	struct device_node *dn, *child;
+	const char *prefer;
 	int index;
 
 	dn = of_find_node_by_name(ems_dn, "cpu-selection-domain");
@@ -1352,6 +1390,10 @@ int core_init(struct device_node *ems_dn)
 	tex_init();
 	cpus_binding_init();
 	cpu_weight_init();
+
+	if (of_property_read_string(ems_dn, "topapp-prefer-cpus", &prefer) ||
+	    cpulist_parse(prefer, &topapp_prefer_cpus))
+		cpumask_clear(&topapp_prefer_cpus);
 
 	index = match_string(sched_feat_names, __SCHED_FEAT_NR, "TTWU_QUEUE");
 	if (index >= 0) {

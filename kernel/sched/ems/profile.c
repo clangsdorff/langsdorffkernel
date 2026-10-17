@@ -26,6 +26,7 @@ char *fair_causes_name[END_OF_FAIR_CAUSES] = {
 	"performance",
 	"sync",
 	"fast-track",
+	"topapp-prefer",
 	"na"
 };
 
