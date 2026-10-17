@@ -358,7 +358,6 @@ static const struct {
 	unsigned int m;
 } oc_steps[] = {
 	{ 2314000, 267 },
-	{ 2418000, 279 },
 };
 
 struct oc_cluster {
