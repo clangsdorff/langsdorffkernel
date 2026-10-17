@@ -753,6 +753,10 @@ static struct thermal_zone_device* parse_ect_cooling_level(struct thermal_coolin
 		if (level == THERMAL_CSTATE_INVALID)
 			level = max_level;
 
+		/* ECT range 0 holds the stock top level and would block the oc steps */
+		if (!i)
+			level = 0;
+
 		instance->upper = level;
 
 		pr_info("Parsed From ECT : %s: [%d] Temperature : %d, frequency : %u, level: %d\n",
