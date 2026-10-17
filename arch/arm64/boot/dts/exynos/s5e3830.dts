@@ -2233,7 +2233,7 @@
 			sibling-cpus = "0-3";
 			cal-id = <0xb040002>;
 			dm-type = <0x00>;
-			min-freq = <0x854d0>;
+			min-freq = <0x6be90>;
 			thread-run-on = "0-3";
 			#cooling-cells = <0x02>;
 			ect-coeff-index = <0x01>;
@@ -2254,7 +2254,7 @@
 			sibling-cpus = "4-7";
 			cal-id = <0xb040003>;
 			dm-type = <0x01>;
-			min-freq = <0x854d0>;
+			min-freq = <0x6be90>;
 			need-awake;
 			thread-run-on = "0-3";
 			#cooling-cells = <0x02>;
