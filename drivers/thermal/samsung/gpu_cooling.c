@@ -1009,9 +1009,7 @@ int exynos_gpu_cooling_init(void)
 {
 	struct device_node *np = NULL;
 	struct thermal_cooling_device *dev;
-	void *gen_block;
-	struct ect_gen_param_table *pwr_coeff;
-	u32 capacitance = 0, index;
+	u32 capacitance = 0;
 	int ret = 0;
 
 	ret = gpu_cooling_table_init();
@@ -1030,29 +1028,6 @@ int exynos_gpu_cooling_init(void)
 		pr_err("Fail to find device node\n");
 		return -EINVAL;
 	}
-#if 0
-	of_property_read_u32(np, "gpu_power_coeff", &capacitance);
-
-	if (of_property_read_bool(np, "use-em-coeff"))
-		goto regist;
-
-	if (!of_property_read_u32(np, "ect-coeff-index", &index)) {
-		gen_block = ect_get_block("GEN");
-		if (gen_block == NULL) {
-			pr_err("%s: Failed to get gen block from ECT\n", __func__);
-			goto regist;
-		}
-		pwr_coeff = ect_gen_param_get_table(gen_block, "DTM_PWR_Coeff");
-		if (pwr_coeff == NULL) {
-			pr_err("%s: Failed to get power coeff from ECT\n", __func__);
-			goto regist;
-		}
-		capacitance = pwr_coeff->parameter[index];
-	} else {
-		pr_err("%s: could not find ect-coeff-index\n", __func__);
-	}
-#endif
-regist:
 	dev = __gpufreq_cooling_register(np, NULL, capacitance);
 
 	if (IS_ERR(dev)) {
