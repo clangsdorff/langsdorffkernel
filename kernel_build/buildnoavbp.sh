@@ -51,7 +51,7 @@ BUILD_TOOLS_REPO="https://android.googlesource.com/platform/prebuilts/build-tool
 
 # Kernel-side
 GIT_COMMIT=$(git rev-parse --short HEAD)
-BUILD_ARGS="LOCALVERSION=-langsdorff${XY_VERSION}-${GIT_COMMIT} KBUILD_BUILD_USER=Langsdorff KBUILD_BUILD_HOST=langsdorff"
+BUILD_ARGS="LOCALVERSION=-langsdorff-${XY_VERSION#@}-${GIT_COMMIT} KBUILD_BUILD_USER=Langsdorff KBUILD_BUILD_HOST=langsdorff"
 kfinish() {
     rm -rf "$TMPDIR"
 #    rm -rf "$OUTDIR"
