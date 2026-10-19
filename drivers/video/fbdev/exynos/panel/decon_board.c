@@ -426,7 +426,7 @@ static int is_dummy_regulator(struct regulator_bulk_data *bulk)
 
 	rdev = bulk->consumer->rdev;
 
-#if SHOULD_CHECK_LATER
+#ifdef SHOULD_CHECK_LATER
 	ret = (rdev && rdev != dummy_regulator_rdev) ? 0 : 1;
 #else
 	ret = 0;
@@ -1434,7 +1434,7 @@ int of_update_phandle_property_list(struct device_node *from, const char *phandl
 	}
 
 
-#if SHOULD_CHECK_LATER
+#ifdef SHOULD_CHECK_LATER
 	ret = of_update_property(parent, prop_new);
 #else
 	ret = of_add_property(parent, prop_new);
@@ -1527,7 +1527,7 @@ static int __of_update_recommend(struct device_node *np, unsigned int recommend)
 		prop_new->value = "ok";
 		prop_new->length = sizeof("ok");
 
-#if SHOULD_CHECK_LATER
+#ifdef SHOULD_CHECK_LATER
 		ret = of_update_property(np, prop_new);
 #else
 		ret = of_add_property(np, prop_new);
@@ -1665,15 +1665,5 @@ int __init decon_board_init(void)
 	return 0;
 }
 //core_initcall(decon_board_init);
-
-static int __init decon_board_late_initcall(void)
-{
-	struct platform_device *pdev = of_find_device_by_path("/panel_drv@0");
-	struct device *dev = pdev ? &(pdev->dev) : NULL;
-	panel_clean_board(dev);
-
-	return 0;
-}
-//late_initcall_sync(decon_board_late_initcall);
 
 

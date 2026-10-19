@@ -3608,7 +3608,6 @@ static int __init panel_drv_init(void)
 static void __exit panel_drv_exit(void)
 {
 	platform_driver_unregister(&panel_driver);
-	panel_destroy_lcd_class();
 }
 
 module_init(panel_drv_init);
