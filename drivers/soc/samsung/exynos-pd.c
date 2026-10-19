@@ -311,31 +311,6 @@ static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 	return 0;
 }
 
-/* exynos_pd_show_power_domain - show current power domain status.
- *
- * read the status of power domain and show it.
- */
-static void exynos_pd_show_power_domain(void)
-{
-	struct device_node *np;
-	for_each_compatible_node(np, NULL, "samsung,exynos-pd") {
-		struct platform_device *pdev;
-		struct exynos_pm_domain *pd;
-
-		if (of_device_is_available(np)) {
-			pdev = of_find_device_by_node(np);
-			if (!pdev)
-				continue;
-			pd = platform_get_drvdata(pdev);
-			pr_info("   %-9s - %-3s\n", pd->genpd.name,
-					cal_pd_status(pd->cal_pdid) ? "on" : "off");
-		} else
-			pr_info("   %-9s - %s\n", np->name, "on,  always");
-	}
-
-	return;
-}
-
 static int exynos_pd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -447,29 +422,6 @@ static int exynos_pd_probe(struct platform_device *pdev)
 	return 0;
 }
 #endif /* CONFIG_OF */
-
-#if 0
-static int __init exynos_pd_init(void)
-{
-	int ret;
-#ifdef CONFIG_OF
-	if (of_have_populated_dt()) {
-		ret = exynos_pd_dt_parse();
-		if (ret) {
-			pr_err(EXYNOS_PD_PREFIX "dt parse failed.\n");
-			return ret;
-		}
-
-		pr_info("%s PM Domain Initialize\n", EXYNOS_PD_PREFIX);
-		/* show information of power domain registration */
-		exynos_pd_show_power_domain();
-		return 0;
-	}
-#endif
-	pr_err(EXYNOS_PD_PREFIX "PM Domain works along with Device Tree\n");
-	return -EPERM;
-}
-#endif
 
 static int exynos_pd_suspend_late(struct device *dev)
 {
