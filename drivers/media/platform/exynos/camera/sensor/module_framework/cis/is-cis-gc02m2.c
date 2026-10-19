@@ -1914,7 +1914,6 @@ int sensor_gc02m2_cis_wait_streamon(struct v4l2_subdev *subdev)
 	struct is_cis *cis;
 	struct i2c_client *client;
 	cis_shared_data *cis_data;
-	u8 sensor_fcount_msb = 0, sensor_fcount_lsb = 0;
 	u16 cur_frame_count = 0;
 	u16 next_frame_count = 0;
 

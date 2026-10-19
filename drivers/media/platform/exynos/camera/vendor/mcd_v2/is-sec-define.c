@@ -2011,12 +2011,10 @@ int is_sec_readcal_otprom_hi556(int rom_id, struct is_rom_info *finfo,
 	struct is_vender_specific *specific = core->vender.private_data;
 	struct i2c_client *client = NULL;
 	bool camera_running;
-	specific->rom_cal_map_addr[position];
 	struct is_cis *cis = NULL;
 	struct v4l2_subdev *subdev_cis = NULL;
 	struct is_device_sensor_peri *sensor_peri = NULL;
 	struct is_module_enum *module = NULL;
-	u32 i2c_channel;
 
 	is_vendor_get_module_from_position(position, &module);
 	info("Camera: read cal data from OTPROM (rom_id:%d)\n", rom_id);
@@ -2121,7 +2119,6 @@ crc_retry:
 	is_sensor_write8(client, 0x0A00, 0x01);
 	msleep(10);
 
-exit:
 	info("%s X\n", __func__);
 	return ret;
 }

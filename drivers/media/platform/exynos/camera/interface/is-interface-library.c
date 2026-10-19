@@ -2556,6 +2556,7 @@ int __nocfi is_load_ddk_bin(int loadType)
 	static rkp_dynamic_load_t rkp_dyn_before = {0};
 #endif
 	ulong lib_isp = DDK_LIB_ADDR;
+	ulong lib_vra __maybe_unused = VRA_LIB_ADDR;
 
 #ifdef USE_ONE_BINARY
 	bin_size = VRA_LIB_SIZE + DDK_LIB_SIZE;
@@ -2563,7 +2564,6 @@ int __nocfi is_load_ddk_bin(int loadType)
 	bin_size = DDK_LIB_SIZE;
 #endif
 
-	ulong lib_vra = VRA_LIB_ADDR;
 #if !IS_ENABLED(CONFIG_DISABLE_CAMERA_MEM_ATTR)
 	struct is_memory_attribute memory_attribute[] = {
 		{__pgprot(PTE_RDONLY), PFN_UP(LIB_VRA_CODE_SIZE), lib_vra},
