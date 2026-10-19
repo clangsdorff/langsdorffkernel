@@ -275,6 +275,7 @@ static struct platform_driver exynos_reboot_driver = {
 	.id_table	= exynos_reboot_ids,
 };
 
+#ifndef MODULE
 static int reset_reason_setup(char *str)
 {
 	strncpy(exynos_reboot.reset_reason, str, strlen(str));
@@ -282,6 +283,7 @@ static int reset_reason_setup(char *str)
 	return 1;
 }
 __setup("androidboot.bootreason=", reset_reason_setup);
+#endif
 module_platform_driver(exynos_reboot_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Khalid Shaik <khalid.s@samsung.com>");

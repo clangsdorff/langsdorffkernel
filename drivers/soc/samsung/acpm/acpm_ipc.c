@@ -779,10 +779,6 @@ static int acpm_ipc_die_handler(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nb_die_block = {
-	.notifier_call = acpm_ipc_die_handler,
-};
-
 static struct notifier_block nb_panic_block = {
 	.notifier_call = acpm_ipc_die_handler,
 	.priority = INT_MAX,
@@ -856,7 +852,6 @@ int acpm_ipc_probe(struct platform_device *pdev)
 				msecs_to_jiffies(acpm_debug->period));
 	}
 
-//	register_die_notifier(&nb_die_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &nb_panic_block);
 
 	ret = devm_request_threaded_irq(&pdev->dev, acpm_ipc->irq, acpm_ipc_irq_handler,
