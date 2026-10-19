@@ -837,11 +837,9 @@ int sensor_jn1_cis_set_exposure_time(struct v4l2_subdev *subdev, struct ae_param
 #endif
 
 	u32 target_exp = 0;
-	u32 target_frame_duration = 0;
 	u16 frame_length_lines = 0;
 	u64 max_fll_frame_time;
 
-	unsigned char cit_lshift_val = 0;
 	int cit_lshift_count = 0;
 
 	FIMC_BUG(!subdev);
@@ -1807,7 +1805,6 @@ int sensor_jn1_cis_long_term_exposure(struct v4l2_subdev *subdev)
 	unsigned char cit_lshift_val = 0;
 	int cit_lshift_count = 0;
 	u32 target_exp = 0;
-	int hold = 0;
 
 	FIMC_BUG(!subdev);
 
@@ -1838,7 +1835,6 @@ int sensor_jn1_cis_long_term_exposure(struct v4l2_subdev *subdev)
 
 	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
-p_err:
 	err("[%s] sen_strm_enable(%d), cit_lshift_count (%d), target_exp(%d)", __func__,
 		lte_mode->sen_strm_off_on_enable, cit_lshift_count, lte_mode->expo[0]);
 

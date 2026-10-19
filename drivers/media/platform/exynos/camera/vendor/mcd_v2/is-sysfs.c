@@ -1035,7 +1035,6 @@ static ssize_t camera_front_sensorid_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	int ret = 0;
-	struct device *is_vendor_dev = &sysfs_core->ischain[0].pdev->dev;
 	struct is_vender_specific *specific = sysfs_core->vender.private_data;
 
 	if (specific->rom_data[SENSOR_POSITION_FRONT].rom_valid) {

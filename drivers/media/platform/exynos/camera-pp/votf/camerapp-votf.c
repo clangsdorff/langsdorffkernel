@@ -287,7 +287,6 @@ int votfitf_set_service_cfg(struct votf_info *vinfo, struct votf_service_cfg *cf
 	u32 dest;
 	u32 offset;
 	u32 token_size;
-	u32 frame_size;
 	int id, ip;
 	int service;
 	int module;

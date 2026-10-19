@@ -634,7 +634,6 @@ p_err:
 int sensor_hi5022_cis_set_xgc_cal(struct is_cis *cis)
 {
 	int ret = 0;
-	int i;
 	int cal_size[2] = { 0 };
 	char *cal_buf;
 	u8* cal_data;
@@ -643,7 +642,6 @@ int sensor_hi5022_cis_set_xgc_cal(struct is_cis *cis)
 	struct i2c_client *client = NULL;
 
 	u16 read_data = 0x0000;
-	u16 write_data = 0x0000;
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -707,7 +705,6 @@ p_err:
 int sensor_hi5022_cis_set_qbgc_cal(struct is_cis *cis)
 {
 	int ret = 0, cal_size = 0;
-	int i;
 	char *cal_buf;
 	u8* cal_data;
 
@@ -715,7 +712,6 @@ int sensor_hi5022_cis_set_qbgc_cal(struct is_cis *cis)
 	struct i2c_client *client = NULL;
 
 	u16 read_data = 0x0000;
-	u16 write_data = 0x0000;
 
 	client = cis->client;
 	if (unlikely(!client)) {
@@ -2253,7 +2249,6 @@ int sensor_hi5022_cis_long_term_exposure(struct v4l2_subdev *subdev)
 	struct is_cis *cis = NULL;
 	cis_shared_data *cis_data = NULL;
 	struct is_long_term_expo_mode *lte_mode;
-	int hold = 0;
 
 	u64 pix_rate_freq_khz = 0;
 	u32 coarse_int = 0;
@@ -2294,7 +2289,6 @@ int sensor_hi5022_cis_long_term_exposure(struct v4l2_subdev *subdev)
 
 	I2C_MUTEX_UNLOCK(cis->i2c_lock);
 
-p_err:
 	err("[%s] sen_strm_enable(%d), target_exp(%d)", __func__,
 		lte_mode->sen_strm_off_on_enable, lte_mode->expo[0]);
 

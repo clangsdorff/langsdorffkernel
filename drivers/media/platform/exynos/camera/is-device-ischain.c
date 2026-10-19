@@ -153,8 +153,6 @@ static int is_ischain_paf_stop(void *qdevice,
 	struct is_queue *queue);
 static int is_ischain_3aa_stop(void *qdevice,
 	struct is_queue *queue);
-static int is_ischain_lme_stop(void *qdevice,
-	struct is_queue *queue);
 static int is_ischain_isp_stop(void *qdevice,
 	struct is_queue *queue);
 static int is_ischain_mcs_stop(void *qdevice,
@@ -170,8 +168,6 @@ static int is_ischain_paf_shot(struct is_device_ischain *device,
 	struct is_frame *frame);
 static int is_ischain_3aa_shot(struct is_device_ischain *device,
 	struct is_frame *frame);
-static int is_ischain_lme_shot(struct is_device_ischain *device,
-	struct is_frame *frame);
 static int is_ischain_isp_shot(struct is_device_ischain *device,
 	struct is_frame *frame);
 static int is_ischain_mcs_shot(struct is_device_ischain *device,
@@ -179,8 +175,6 @@ static int is_ischain_mcs_shot(struct is_device_ischain *device,
 static int is_ischain_vra_shot(struct is_device_ischain *device,
 	struct is_frame *frame);
 static int is_ischain_clh_shot(struct is_device_ischain *device,
-	struct is_frame *frame);
-static int is_ischain_ypp_shot(struct is_device_ischain *device,
 	struct is_frame *frame);
 
 static const struct sensor_param init_sensor_param = {
@@ -5696,25 +5690,6 @@ p_err:
 	return ret;
 }
 
-static int is_ischain_ypp_group_tag(struct is_device_ischain *device,
-	struct is_frame *frame,
-	struct camera2_node *ldr_node)
-{
-	int ret = 0;
-	struct is_group *group;
-
-	group = &device->group_ypp;
-
-	ret = CALL_SOPS(&group->leader, tag, device, frame, ldr_node);
-	if (ret) {
-		merr("is_ischain_ypp_tag is fail(%d)", device, ret);
-		goto p_err;
-	}
-
-p_err:
-	return ret;
-}
-
 static int is_ischain_mcs_group_tag(struct is_device_ischain *device,
 	struct is_frame *frame,
 	struct camera2_node *ldr_node)
@@ -5937,61 +5912,6 @@ static int is_ischain_clh_group_tag(struct is_device_ischain *device,
 				ret = CALL_SOPS(subdev, tag, device, frame, cap_node);
 				if (ret) {
 					merr("is_ischain_clhc_tag is fail(%d)", device, ret);
-					goto p_err;
-				}
-			}
-			break;
-		default:
-			break;
-		}
-	}
-
-p_err:
-	return ret;
-}
-
-static int is_ischain_lme_group_tag(struct is_device_ischain *device,
-	struct is_frame *frame,
-	struct camera2_node *ldr_node)
-{
-	int ret = 0;
-	u32 capture_id;
-	struct is_group *group;
-	struct is_subdev *subdev;
-	struct camera2_node_group *node_group;
-	struct camera2_node *cap_node;
-
-	group = &device->group_lme;
-	node_group = &frame->shot_ext->node_group;
-
-	ret = CALL_SOPS(&group->leader, tag, device, frame, ldr_node);
-	if (ret) {
-		merr("is_ischain_isp_tag is fail(%d)", device, ret);
-		goto p_err;
-	}
-
-	for (capture_id = 0; capture_id < CAPTURE_NODE_MAX; ++capture_id) {
-		cap_node = &node_group->capture[capture_id];
-		subdev = NULL;
-		switch (cap_node->vid) {
-		case 0:
-			break;
-		case IS_VIDEO_LME0S_NUM:
-			subdev = group->subdev[ENTRY_LMES];
-			if (subdev && test_bit(IS_SUBDEV_START, &subdev->state)) {
-				ret = CALL_SOPS(subdev, tag, device, frame, cap_node);
-				if (ret) {
-					merr("is_ischain_lmes_tag is fail(%d)", device, ret);
-					goto p_err;
-				}
-			}
-			break;
-		case IS_VIDEO_LME0C_NUM:
-			subdev = group->subdev[ENTRY_LMEC];
-			if (subdev && test_bit(IS_SUBDEV_START, &subdev->state)) {
-				ret = CALL_SOPS(subdev, tag, device, frame, cap_node);
-				if (ret) {
-					merr("is_ischain_lmec_tag is fail(%d)", device, ret);
 					goto p_err;
 				}
 			}
@@ -6488,164 +6408,6 @@ framemgr_err:
 	return ret;
 }
 
-static int is_ischain_lme_shot(struct is_device_ischain *device,
-	struct is_frame *check_frame)
-{
-	int ret = 0;
-	unsigned long flags;
-	struct is_group *group, *child, *vra;
-	struct is_framemgr *framemgr;
-	struct is_frame *frame;
-	struct camera2_node_group *node_group;
-	struct camera2_node ldr_node = {0, };
-	u32 setfile_save = 0;
-	enum is_frame_state next_state = FS_PROCESS;
-
-	FIMC_BUG(!device);
-	FIMC_BUG(!check_frame);
-	FIMC_BUG(device->sensor_id >= SENSOR_NAME_END);
-
-	mdbgs_ischain(4, "%s\n", device, __func__);
-
-	frame = NULL;
-	group = &device->group_lme;
-
-	framemgr = GET_HEAD_GROUP_FRAMEMGR(group);
-	if (!framemgr) {
-		merr("framemgr is NULL", device);
-		ret = -EINVAL;
-		goto framemgr_err;
-	}
-
-	frame = peek_frame(framemgr, check_frame->state);
-
-	if (unlikely(!frame)) {
-		merr("frame is NULL. check_state(%d)", device, check_frame->state);
-		ret = -EINVAL;
-		goto frame_err;
-	}
-
-	if (unlikely(frame != check_frame)) {
-		merr("frame checking is fail(%p != %p)", device, frame, check_frame);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
-	if (unlikely(!frame->shot)) {
-		merr("frame->shot is NULL", device);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
-	frame->shot->ctl.vendor_entry.lowIndexParam = 0;
-	frame->shot->ctl.vendor_entry.highIndexParam = 0;
-	frame->shot->dm.vendor_entry.lowIndexParam = 0;
-	frame->shot->dm.vendor_entry.highIndexParam = 0;
-	node_group = &frame->shot_ext->node_group;
-
-	PROGRAM_COUNT(8);
-
-	if ((frame->shot_ext->setfile != device->setfile) &&
-		(group->id == get_ischain_leader_group(device)->id)) {
-			setfile_save = device->setfile;
-			device->setfile = frame->shot_ext->setfile;
-
-		mgrinfo(" setfile change at shot(%d -> %d)\n", device, group, frame,
-			setfile_save, device->setfile & IS_SETFILE_MASK);
-
-		if (test_bit(IS_ISCHAIN_REPROCESSING, &device->state)) {
-			ret = is_ischain_chg_setfile(device);
-			if (ret) {
-				merr("is_ischain_chg_setfile is fail", device);
-				device->setfile = setfile_save;
-				goto p_err;
-			}
-		}
-	}
-
-	PROGRAM_COUNT(9);
-
-	if (test_bit(IS_SUBDEV_PARAM_ERR, &group->leader.state))
-		set_bit(IS_SUBDEV_FORCE_SET, &group->leader.state);
-	else
-		clear_bit(IS_SUBDEV_FORCE_SET, &group->leader.state);
-
-	child = group;
-	while (child) {
-		switch (child->slot) {
-		case GROUP_SLOT_ISP:
-			TRANS_CROP(ldr_node.input.cropRegion,
-				node_group->leader.input.cropRegion);
-			TRANS_CROP(ldr_node.output.cropRegion,
-				ldr_node.input.cropRegion);
-
-			ldr_node.pixelformat = node_group->leader.pixelformat;
-			ret = is_ischain_isp_group_tag(device, frame, &ldr_node);
-			if (ret) {
-				merr("is_ischain_isp_group_tag is fail(%d)", device, ret);
-				goto p_err;
-			}
-			break;
-		case GROUP_SLOT_MCS:
-			TRANS_CROP(ldr_node.input.cropRegion,
-				ldr_node.output.cropRegion);
-			TRANS_CROP(ldr_node.output.cropRegion,
-				ldr_node.input.cropRegion);
-			ret = is_ischain_mcs_group_tag(device, frame, &ldr_node);
-			if (ret) {
-				merr("is_ischain_mcs_group_tag is fail(%d)", device, ret);
-				goto p_err;
-			}
-			break;
-		case GROUP_SLOT_VRA:
-			vra = &device->group_vra;
-			TRANS_CROP(ldr_node.input.cropRegion,
-				(u32 *)&vra->prev->junction->output.crop);
-			TRANS_CROP(ldr_node.output.cropRegion,
-				ldr_node.input.cropRegion);
-			ret = is_ischain_vra_group_tag(device, frame, &ldr_node);
-			if (ret) {
-				merr("is_ischain_vra_group_tag is fail(%d)", device, ret);
-				goto p_err;
-			}
-			break;
-		default:
-			merr("group slot is invalid(%d)", device, child->slot);
-			BUG();
-		}
-
-		child = child->child;
-	}
-
-#ifdef PRINT_PARAM
-	if (frame->fcount == 1) {
-		is_hw_memdump(device->interface,
-			(ulong) &device->is_region->parameter,
-			(ulong) &device->is_region->parameter + sizeof(device->is_region->parameter));
-	}
-#endif
-
-	PROGRAM_COUNT(10);
-
-p_err:
-	if (frame->stripe_info.region_num
-		&& frame->stripe_info.region_id < frame->stripe_info.region_num - 1)
-		next_state = FS_STRIPE_PROCESS;
-
-	if (ret) {
-		mgrerr(" SKIP(%d) : %d\n", device, group, check_frame, check_frame->index, ret);
-	} else {
-		set_bit(group->leader.id, &frame->out_flag);
-		framemgr_e_barrier_irqs(framemgr, FMGR_IDX_26, flags);
-		trans_frame(framemgr, frame, next_state);
-		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_26, flags);
-	}
-
-frame_err:
-framemgr_err:
-	return ret;
-}
-
 static int is_ischain_isp_shot(struct is_device_ischain *device,
 	struct is_frame *check_frame)
 {
@@ -6747,151 +6509,6 @@ static int is_ischain_isp_shot(struct is_device_ischain *device,
 		case GROUP_SLOT_MCS:
 			TRANS_CROP(ldr_node.input.cropRegion,
 				ldr_node.output.cropRegion);
-			TRANS_CROP(ldr_node.output.cropRegion,
-				ldr_node.input.cropRegion);
-			ret = is_ischain_mcs_group_tag(device, frame, &ldr_node);
-			if (ret) {
-				merr("is_ischain_mcs_group_tag is fail(%d)", device, ret);
-				goto p_err;
-			}
-			break;
-		case GROUP_SLOT_VRA:
-			vra = &device->group_vra;
-			TRANS_CROP(ldr_node.input.cropRegion,
-				(u32 *)&vra->prev->junction->output.crop);
-			TRANS_CROP(ldr_node.output.cropRegion,
-				ldr_node.input.cropRegion);
-			ret = is_ischain_vra_group_tag(device, frame, &ldr_node);
-			if (ret) {
-				merr("is_ischain_vra_group_tag is fail(%d)", device, ret);
-				goto p_err;
-			}
-			break;
-		default:
-			merr("group slot is invalid(%d)", device, child->slot);
-			BUG();
-		}
-
-		child = child->child;
-	}
-
-#ifdef PRINT_PARAM
-	if (frame->fcount == 1) {
-		is_hw_memdump(device->interface,
-			(ulong) &device->is_region->parameter,
-			(ulong) &device->is_region->parameter + sizeof(device->is_region->parameter));
-	}
-#endif
-
-	PROGRAM_COUNT(10);
-
-p_err:
-	if (frame->stripe_info.region_num
-		&& frame->stripe_info.region_id < frame->stripe_info.region_num - 1)
-		next_state = FS_STRIPE_PROCESS;
-
-	if (ret) {
-		mgrerr(" SKIP(%d) : %d\n", device, group, check_frame, check_frame->index, ret);
-	} else {
-		set_bit(group->leader.id, &frame->out_flag);
-		framemgr_e_barrier_irqs(framemgr, FMGR_IDX_26, flags);
-		trans_frame(framemgr, frame, next_state);
-		framemgr_x_barrier_irqr(framemgr, FMGR_IDX_26, flags);
-	}
-
-frame_err:
-framemgr_err:
-	return ret;
-}
-
-static int is_ischain_ypp_shot(struct is_device_ischain *device,
-	struct is_frame *check_frame)
-{
-	int ret = 0;
-	unsigned long flags;
-	struct is_group *group, *child, *vra;
-	struct is_framemgr *framemgr;
-	struct is_frame *frame;
-	struct camera2_node_group *node_group;
-	struct camera2_node ldr_node = {0, };
-	u32 setfile_save = 0;
-	enum is_frame_state next_state = FS_PROCESS;
-
-	FIMC_BUG(!device);
-	FIMC_BUG(!check_frame);
-	FIMC_BUG(device->sensor_id >= SENSOR_NAME_END);
-
-	mdbgs_ischain(4, "%s\n", device, __func__);
-
-	frame = NULL;
-	group = &device->group_ypp;
-
-	framemgr = GET_HEAD_GROUP_FRAMEMGR(group);
-	if (!framemgr) {
-		merr("framemgr is NULL", device);
-		ret = -EINVAL;
-		goto framemgr_err;
-	}
-
-	frame = peek_frame(framemgr, check_frame->state);
-
-	if (unlikely(!frame)) {
-		merr("frame is NULL. check_state(%d)", device, check_frame->state);
-		ret = -EINVAL;
-		goto frame_err;
-	}
-
-	if (unlikely(frame != check_frame)) {
-		merr("frame checking is fail(%p != %p)", device, frame, check_frame);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
-	if (unlikely(!frame->shot)) {
-		merr("frame->shot is NULL", device);
-		ret = -EINVAL;
-		goto p_err;
-	}
-
-	frame->shot->ctl.vendor_entry.lowIndexParam = 0;
-	frame->shot->ctl.vendor_entry.highIndexParam = 0;
-	frame->shot->dm.vendor_entry.lowIndexParam = 0;
-	frame->shot->dm.vendor_entry.highIndexParam = 0;
-	node_group = &frame->shot_ext->node_group;
-
-	PROGRAM_COUNT(8);
-
-	if ((frame->shot_ext->setfile != device->setfile) &&
-		(group->id == get_ischain_leader_group(device)->id)) {
-			setfile_save = device->setfile;
-			device->setfile = frame->shot_ext->setfile;
-
-		mgrinfo(" setfile change at shot(%d -> %d)\n", device, group, frame,
-			setfile_save, device->setfile & IS_SETFILE_MASK);
-
-		if (test_bit(IS_ISCHAIN_REPROCESSING, &device->state)) {
-			ret = is_ischain_chg_setfile(device);
-			if (ret) {
-				merr("is_ischain_chg_setfile is fail", device);
-				device->setfile = setfile_save;
-				goto p_err;
-			}
-		}
-	}
-
-	PROGRAM_COUNT(9);
-
-	if (test_bit(IS_SUBDEV_PARAM_ERR, &group->leader.state))
-		set_bit(IS_SUBDEV_FORCE_SET, &group->leader.state);
-	else
-		clear_bit(IS_SUBDEV_FORCE_SET, &group->leader.state);
-
-	child = group;
-	while (child) {
-		switch (child->slot) {
-		case GROUP_SLOT_MCS:
-			TRANS_CROP(ldr_node.input.cropRegion,
-				node_group->leader.input.cropRegion);
 			TRANS_CROP(ldr_node.output.cropRegion,
 				ldr_node.input.cropRegion);
 			ret = is_ischain_mcs_group_tag(device, frame, &ldr_node);

@@ -4636,7 +4636,7 @@ const struct sensor_pll_info_compact sensor_hi5022_pllinfo_A_A2A2_2032x1524_120F
 
 const struct sensor_pll_info_compact sensor_hi5022_pllinfo_A_FULL_8160x6120_15FPS = {
 	EXT_CLK_Mhz * 1000 * 1000,  /* ext_clk */
-	2301 * 1000 * 1000,                  /* mipi_datarate */
+	2301U * 1000 * 1000,                  /* mipi_datarate */
 	123500000,                  /* pclk, VT system clock */
 	6499,                       /* frame_length_lines */
 	1266,                       /* line_length_pck(per lane)*/

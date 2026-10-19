@@ -756,7 +756,9 @@ void is_sensor_flash_expire_work(struct work_struct *data)
 
 void is_sensor_actuator_active_on_work(struct work_struct *data)
 {
+#ifdef USE_AF_SLEEP_MODE
 	int ret = 0;
+#endif
 	struct is_actuator *act;
 	struct is_device_sensor_peri *sensor_peri;
 
