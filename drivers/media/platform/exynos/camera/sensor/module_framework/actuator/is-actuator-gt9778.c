@@ -409,8 +409,6 @@ int sensor_gt9778_actuator_soft_landing(struct v4l2_subdev *subdev)
 	ret = is_sensor_addr8_read8(client, REG_VCM_LSB, &val);
 	if (ret < 0)
 		goto p_err_mutex;
-
-p_err_mutex:
 	I2C_MUTEX_UNLOCK(actuator->i2c_lock);
 
 	position |= (val & 0x00ff);
@@ -428,6 +426,8 @@ p_err_mutex:
 	pr_info("[%s] Softlanding Successful, final position: [%x]\n",__func__, DEF_GT9778_FIRST_POSITION);
 	return ret;
 
+p_err_mutex:
+	I2C_MUTEX_UNLOCK(actuator->i2c_lock);
 p_err:
 	err("[%s] Actuator Softlanding Failed (%d)\n", __func__, ret);
 	return ret;
