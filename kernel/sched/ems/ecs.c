@@ -61,7 +61,6 @@ static void detach_all_tasks(struct rq *src_rq,
 		struct rq *dst_rq, struct list_head *tasks)
 {
 	struct task_struct *p, *n;
-	struct rb_node *next_node;
 
 	update_rq_clock(src_rq);
 
