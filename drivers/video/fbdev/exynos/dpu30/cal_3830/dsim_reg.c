@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
 #include "../dsim.h"
 #include "regs-decon.h"
 
@@ -2054,59 +2055,61 @@ void dsim_reg_preinit(u32 id)
 	u32 lanes;
 	struct dsim_device *dsim = get_dsim_drvdata(id);
 	struct dsim_clks clks;
-	struct exynos_panel_info lcd_info;
+	struct exynos_panel_info *lcd_info;
+
+	lcd_info = kzalloc(sizeof(*lcd_info), GFP_KERNEL);
+	if (!lcd_info)
+		return;
 
 	/* default configuration just for reading panel id */
 #if 0 // for univarsal 3830 device
 	memset(&clks, 0, sizeof(struct dsim_clks));
 	clks.hs_clk = 830;
 	clks.esc_clk = 16;
-	memset(&lcd_info, 0, sizeof(struct exynos_panel_info));
-	lcd_info.vfp = 24;
-	lcd_info.vbp = 4;
-	lcd_info.vsa = 2;
-	lcd_info.hfp = 508;
-	lcd_info.hbp = 80;
-	lcd_info.hsa = 2;
-	lcd_info.fps = 60;
-	lcd_info.hs_clk = 830;
-	lcd_info.mode = DECON_VIDEO_MODE;
-	lcd_info.xres = 720;
-	lcd_info.yres = 1600;
-	lcd_info.dphy_pms.p = 2;
-	lcd_info.dphy_pms.m = 255;
-	lcd_info.dphy_pms.s = 2;
-	lcd_info.dphy_pms.k = 25206;
-	lcd_info.data_lane = 4;
-	lcd_info.cmd_underrun_cnt[0] = 1695;
+	lcd_info->vfp = 24;
+	lcd_info->vbp = 4;
+	lcd_info->vsa = 2;
+	lcd_info->hfp = 508;
+	lcd_info->hbp = 80;
+	lcd_info->hsa = 2;
+	lcd_info->fps = 60;
+	lcd_info->hs_clk = 830;
+	lcd_info->mode = DECON_VIDEO_MODE;
+	lcd_info->xres = 720;
+	lcd_info->yres = 1600;
+	lcd_info->dphy_pms.p = 2;
+	lcd_info->dphy_pms.m = 255;
+	lcd_info->dphy_pms.s = 2;
+	lcd_info->dphy_pms.k = 25206;
+	lcd_info->data_lane = 4;
+	lcd_info->cmd_underrun_cnt[0] = 1695;
 #else // configuration for erd3830 device
 	memset(&clks, 0, sizeof(struct dsim_clks));
 	clks.hs_clk = 898;
 	clks.esc_clk = 20;
-	memset(&lcd_info, 0, sizeof(struct exynos_panel_info));
-	lcd_info.vfp = 20;
-	lcd_info.vbp = 2;
-	lcd_info.vsa = 2;
-	lcd_info.hfp = 20;
-	lcd_info.hbp = 20;
-	lcd_info.hsa = 20;
-	lcd_info.fps = 60;
-	lcd_info.hs_clk = 898;
-	lcd_info.mode = DECON_MIPI_COMMAND_MODE;
-	lcd_info.xres = 1080;
-	lcd_info.yres = 1920;
-	lcd_info.dphy_pms.p = 2;
-	lcd_info.dphy_pms.m = 276;
-	lcd_info.dphy_pms.s = 2;
-	lcd_info.dphy_pms.k = 20165; //0x4ec5
-	lcd_info.data_lane = 4;
-	lcd_info.cmd_underrun_cnt[0] = 583;
+	lcd_info->vfp = 20;
+	lcd_info->vbp = 2;
+	lcd_info->vsa = 2;
+	lcd_info->hfp = 20;
+	lcd_info->hbp = 20;
+	lcd_info->hsa = 20;
+	lcd_info->fps = 60;
+	lcd_info->hs_clk = 898;
+	lcd_info->mode = DECON_MIPI_COMMAND_MODE;
+	lcd_info->xres = 1080;
+	lcd_info->yres = 1920;
+	lcd_info->dphy_pms.p = 2;
+	lcd_info->dphy_pms.m = 276;
+	lcd_info->dphy_pms.s = 2;
+	lcd_info->dphy_pms.k = 20165; //0x4ec5
+	lcd_info->data_lane = 4;
+	lcd_info->cmd_underrun_cnt[0] = 583;
 #endif
 
 	/* DPHY reset control from SYSREG(0) */
 	dpu_sysreg_select_dphy_rst_control(dsim->res.ss_regs, dsim->id, 0);
 
-	lanes = dsim_reg_translate_lanecnt_to_lanes(lcd_info.data_lane);
+	lanes = dsim_reg_translate_lanecnt_to_lanes(lcd_info->data_lane);
 
 	/* choose OSC_CLK */
 	dsim_reg_set_link_clock(id, 0);
@@ -2122,16 +2125,18 @@ void dsim_reg_preinit(u32 id)
 	/* panel power on and reset are mandatory for reading panel id */
 	dsim_set_panel_power(dsim, 1);
 
-	dsim_reg_set_clocks(id, &clks, &lcd_info.dphy_pms, 1);
+	dsim_reg_set_clocks(id, &clks, &lcd_info->dphy_pms, 1);
 	dpu_sysreg_dphy_reset(dsim->res.ss_regs, id, 1); /* Release DPHY reset */
 
 	dsim_reg_set_link_clock(id, 1);	/* Selection to word clock */
 
-	dsim_reg_set_config(id, &lcd_info, &clks);
+	dsim_reg_set_config(id, lcd_info, &clks);
 
 	/* PHY pll clock gate disable */
 //	dsim_reg_set_pll_clk_gate_enable(id, DPHY_PLL_CLK_GATE_EN);
 	dsim_reset_panel(dsim);
+
+	kfree(lcd_info);
 }
 
 int dsim_reg_init(u32 id, struct exynos_panel_info *lcd_info, struct dsim_clks *clks,

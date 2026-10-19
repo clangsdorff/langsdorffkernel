@@ -499,28 +499,33 @@ static void win_update_find_included_slice(struct exynos_panel_info *lcd,
 static void win_update_set_partial_size(struct decon_device *decon,
 		struct decon_rect *rect)
 {
-	struct exynos_panel_info lcd_info;
+	struct exynos_panel_info *lcd_info;
 	struct dsim_device *dsim = get_dsim_drvdata(0);
 	bool in_slice[MAX_DSC_SLICE_CNT];
 
-	memcpy(&lcd_info, decon->lcd_info, sizeof(struct exynos_panel_info));
-	lcd_info.xres = rect->right - rect->left + 1;
-	lcd_info.yres = rect->bottom - rect->top + 1;
+	lcd_info = kmemdup(decon->lcd_info, sizeof(*lcd_info), GFP_KERNEL);
+	if (!lcd_info)
+		return;
 
-	lcd_info.hfp = decon->lcd_info->hfp +
-		((decon->lcd_info->xres - lcd_info.xres) >> 1);
-	lcd_info.vfp = decon->lcd_info->vfp + decon->lcd_info->yres - lcd_info.yres;
+	lcd_info->xres = rect->right - rect->left + 1;
+	lcd_info->yres = rect->bottom - rect->top + 1;
 
-	dsim_reg_set_partial_update(dsim->id, &lcd_info);
+	lcd_info->hfp = decon->lcd_info->hfp +
+		((decon->lcd_info->xres - lcd_info->xres) >> 1);
+	lcd_info->vfp = decon->lcd_info->vfp + decon->lcd_info->yres - lcd_info->yres;
+
+	dsim_reg_set_partial_update(dsim->id, lcd_info);
 
 	win_update_find_included_slice(decon->lcd_info, rect, in_slice);
 	decon_reg_set_partial_update(decon->id, decon->dt.dsi_mode,
 			decon->lcd_info, in_slice,
-			lcd_info.xres, lcd_info.yres);
+			lcd_info->xres, lcd_info->yres);
 	DPU_DEBUG_WIN("SET: vfp %d vbp %d vsa %d hfp %d hbp %d hsa %d w %d h %d\n",
-			lcd_info.vfp, lcd_info.vbp, lcd_info.vsa,
-			lcd_info.hfp, lcd_info.hbp, lcd_info.hsa,
-			lcd_info.xres, lcd_info.yres);
+			lcd_info->vfp, lcd_info->vbp, lcd_info->vsa,
+			lcd_info->hfp, lcd_info->hbp, lcd_info->hsa,
+			lcd_info->xres, lcd_info->yres);
+
+	kfree(lcd_info);
 }
 
 void dpu_set_win_update_config(struct decon_device *decon,
