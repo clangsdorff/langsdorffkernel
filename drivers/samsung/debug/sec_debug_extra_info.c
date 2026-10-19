@@ -12,6 +12,7 @@
 #include <linux/of_fdt.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -1038,8 +1039,6 @@ void secdbg_exin_set_hardlockup_freq(const char *domain, struct freq_log *freq)
 	void *p;
 	char *v;
 	char tmp[MAX_ITEM_VAL_LEN] = {0, };
-	char freq_string[MAX_ITEM_VAL_LEN] = {0, };
-	int offset = 0;
 
 	p = get_item("HLFREQ");
 	if (!p) {
@@ -1056,10 +1055,8 @@ void secdbg_exin_set_hardlockup_freq(const char *domain, struct freq_log *freq)
 
 	v = get_item_val(p);
 
-	offset = snprintf(freq_string, MAX_ITEM_VAL_LEN, "%s:%d>%d%c ",
+	snprintf(tmp, MAX_ITEM_VAL_LEN, "%s %s:%d>%d%c ", v,
 		domain, freq->old_freq / 1000, freq->target_freq / 1000, (freq->en == 1) ? '+' : '-');
-
-	snprintf(tmp, MAX_ITEM_VAL_LEN, "%s %s", v, freq_string);
 
 	clear_item_val("HLFREQ");
 
@@ -1070,18 +1067,17 @@ EXPORT_SYMBOL(secdbg_exin_set_hardlockup_freq);
 void secdbg_exin_set_hardlockup_ehld(unsigned int hl_info, unsigned int cpu)
 {
 	int i;
-	int offset = 0;
+	int offset;
 	char tmp[MAX_ITEM_VAL_LEN] = {0, };
-	char tmp_per_cpu[MAX_ITEM_VAL_LEN] = {0, };
+
+	offset = scnprintf(tmp, MAX_ITEM_VAL_LEN, "%s_", get_item_val("HLEHLD"));
 
 	for (i = 0; i < MAX_ETYPES; i++) {
 		if ((hl_info & (1 << i)) != 0)
-			offset += scnprintf(tmp_per_cpu + offset, MAX_ITEM_VAL_LEN - offset, "1");
+			offset += scnprintf(tmp + offset, MAX_ITEM_VAL_LEN - offset, "1");
 		else
-			offset += scnprintf(tmp_per_cpu + offset, MAX_ITEM_VAL_LEN - offset, "0");
+			offset += scnprintf(tmp + offset, MAX_ITEM_VAL_LEN - offset, "0");
 	}
-
-	snprintf(tmp, MAX_ITEM_VAL_LEN, "%s_%s", get_item_val("HLEHLD"), tmp_per_cpu);
 	clear_item_val("HLEHLD");
 	set_item_val("HLEHLD", "%s", tmp);
 }
@@ -1089,10 +1085,15 @@ EXPORT_SYMBOL(secdbg_exin_set_hardlockup_ehld);
 
 static int set_debug_reset_extra_info_proc_show(struct seq_file *m, void *v)
 {
-	char buf[ETR_A_PROC_SIZE];
+	char *buf;
+
+	buf = kmalloc(ETR_A_PROC_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	secdbg_exin_get_extra_info_A(buf);
 	seq_printf(m, "%s", buf);
+	kfree(buf);
 
 	return 0;
 }
@@ -1149,7 +1150,7 @@ static void secdbg_exin_set_fault(enum secdbg_exin_fault_type type,
 	}
 }
 
-static void secdbg_exin_set_regs(struct pt_regs *regs)
+static noinline_for_stack void secdbg_exin_set_regs(struct pt_regs *regs)
 {
 	char fbuf[MAX_ITEM_VAL_LEN];
 	int offset = 0, i;
@@ -1180,7 +1181,7 @@ static void secdbg_exin_set_regs(struct pt_regs *regs)
 	set_item_val("REGS", fbuf);
 }
 
-static void secdbg_exin_set_stack(long *entries, int nr_entries)
+static noinline_for_stack void secdbg_exin_set_stack(long *entries, int nr_entries)
 {
 	char fbuf[MAX_ITEM_VAL_LEN];
 	char *v;
