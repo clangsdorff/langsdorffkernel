@@ -1389,17 +1389,6 @@ static int panel_create_lcd_class(void)
 	return 0;
 }
 
-static int panel_destroy_lcd_class(void)
-{
-	if (!lcd_class)
-		return -EINVAL;
-
-	class_destroy(lcd_class);
-	lcd_class = NULL;
-
-	return 0;
-}
-
 static int panel_create_lcd_device(struct panel_device *panel, unsigned int id)
 {
 	char name[MAX_PANEL_DEV_NAME_SIZE];
