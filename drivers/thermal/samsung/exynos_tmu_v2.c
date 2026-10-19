@@ -449,65 +449,6 @@ static int temp_to_code_with_sensorinfo(struct exynos_tmu_data *data, u16 temp, 
 	return temp_code;
 }
 
-/*
- * Calculate a temperature value from a temperature code.
- * The unit of the temperature is degree Celsius.
- */
-static int code_to_temp(struct exynos_tmu_data *data, u16 temp_code)
-{
-	struct exynos_tmu_platform_data *pdata = data->pdata;
-	int temp;
-
-	switch (pdata->cal_type) {
-	case TYPE_TWO_POINT_TRIMMING:
-		temp = (temp_code - data->temp_error1) *
-			(pdata->second_point_trim - pdata->first_point_trim) /
-			(data->temp_error2 - data->temp_error1) +
-			pdata->first_point_trim;
-		break;
-	case TYPE_ONE_POINT_TRIMMING:
-		temp = temp_code - data->temp_error1 + pdata->first_point_trim;
-		break;
-	default:
-		temp = temp_code - pdata->default_temp_offset;
-		break;
-	}
-
-	return temp;
-}
-
-/*
- * Calculate a temperature value with the index from a temperature code.
- * The unit of the temperature is degree Celsius.
- */
-static int code_to_temp_with_sensorinfo(struct exynos_tmu_data *data, u16 temp_code, struct sensor_info *info)
-{
-	struct exynos_tmu_platform_data *pdata = data->pdata;
-	int temp;
-
-	switch (info->cal_type) {
-	case TYPE_TWO_POINT_TRIMMING:
-		temp = (temp_code - info->temp_error1) *
-			(pdata->second_point_trim - pdata->first_point_trim) /
-			(info->temp_error2 - info->temp_error1) +
-			pdata->first_point_trim;
-		break;
-	case TYPE_ONE_POINT_TRIMMING:
-		temp = temp_code - info->temp_error1 + pdata->first_point_trim;
-		break;
-	default:
-		temp = temp_code - pdata->default_temp_offset;
-		break;
-	}
-
-	/* temperature should range between minimum and maximum */
-	if (temp > EXYNOS_MAX_TEMP)
-		temp = EXYNOS_MAX_TEMP;
-	else if (temp < EXYNOS_MIN_TEMP)
-		temp = EXYNOS_MIN_TEMP;
-
-	return temp;
-}
 static int exynos_tmu_initialize(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
