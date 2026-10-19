@@ -818,14 +818,14 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 			cpumap |= gic_cpu_map[cpu];
 		}
 	} else {
-	if (!force)
-		cpu = cpumask_any_and(mask_val, cpu_online_mask);
-	else
-		cpu = cpumask_first(mask_val);
+		if (!force)
+			cpu = cpumask_any_and(mask_val, cpu_online_mask);
+		else
+			cpu = cpumask_first(mask_val);
 
-	if (cpu >= NR_GIC_CPU_IF || cpu >= nr_cpu_ids)
-		return -EINVAL;
-		
+		if (cpu >= NR_GIC_CPU_IF || cpu >= nr_cpu_ids)
+			return -EINVAL;
+
 		cpumap = gic_cpu_map[cpu];
 		cpumask_copy(&mask, cpumask_of(cpu));
 	}
