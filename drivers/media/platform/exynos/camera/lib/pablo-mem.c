@@ -984,7 +984,7 @@ static void pablo_mem_sync(struct is_priv_buf *pbuf, off_t offset, size_t size,
 	size_t actual_size;
 
 	struct device dummy_dev;
-	dma_addr_t *paddr;
+	dma_addr_t paddr;
 
 	if (!pbuf->kva)
 		return;
@@ -1005,7 +1005,7 @@ static void pablo_mem_sync(struct is_priv_buf *pbuf, off_t offset, size_t size,
 
 	if (secure) {
 		device_initialize(&dummy_dev);
-		paddr = (dma_addr_t *)sg_phys(pbuf->sgt->sgl);
+		paddr = sg_phys(pbuf->sgt->sgl);
 	}
 
 	for_each_sg(pbuf->sgt->sgl, sg, pbuf->sgt->orig_nents, i) {
