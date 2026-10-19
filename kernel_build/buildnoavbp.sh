@@ -124,6 +124,8 @@ if [ "$missing_modules" != "" ]; then
 	exit 1
 fi
 
+cp -f "$IN_DLKM/modules.load" "$MODULES_DIR/0.0/modules.order"
+cp -f "$OUTDIR/modules.builtin" "$MODULES_DIR/0.0/modules.builtin"
 depmod 0.0 -b "$DLKM_RAMDISK_DIR"
 sed -i 's/\([^ ]\+\)/\/lib\/modules\/\1/g' "$MODULES_DIR/0.0/modules.dep"
 cd "$MODULES_DIR/0.0"
