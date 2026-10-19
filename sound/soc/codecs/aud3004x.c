@@ -116,20 +116,6 @@ void aud3004x_regcache_switch(struct aud3004x_priv *aud3004x, bool on)
 			regcache_cache_only(aud3004x->regmap[p_map], on);
 }
 
-static int i2c_client_return(unsigned int reg)
-{
-	switch (reg) {
-	case 0x00 ... 0xFF:
-		return AUD3004D;
-	case 0x100 ... 0x1FF:
-		return AUD3004A;
-	case 0x200 ... 0x2FF:
-		return AUD3004O;
-	default:
-		return CODEC_CLOSE;
-	}
-}
-
 int aud3004x_read(struct aud3004x_priv *aud3004x, unsigned int slave,
 		  unsigned int addr, unsigned int *value)
 {
