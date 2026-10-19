@@ -741,7 +741,6 @@ int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
 	char alpha2[3];
 #ifdef CONFIG_SCSC_WLAN_AP_INFO_FILE
 	u32 offset = 0;
-	struct file *fp = NULL;
 #if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 9
 	char *filepath = "/data/vendor/conn/.softap.info";
 #else
