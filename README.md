@@ -7,6 +7,14 @@
 - Every GPU clock step reachable and holdable. 1105 MHz opens at 65% utilization, 1196 MHz at 70%.
 - Floor under the GPU clock ceiling, default 1001 MHz.
 - Runtime tunables for the GPU ceiling floor and the governor redirect.
+- Samsung input booster, short CPU and memory speed-up on taps, scrolling and key presses.
+- Backported upstream menu idle governor, better sleep state choices and faster wake-up.
+- Backported lazy RCU from Linux 6.2 with callback offloading on all CPUs, fewer wake-ups while idle.
+- Backported batched TLB flushing from Linux 6.5, less stutter while switching apps and swapping.
+- Backported PSI optimizations from Linux 6.1, faster memory pressure tracking for lmkd.
+- Backported f2fs block age extent cache from Linux 6.2, less garbage collection on the eMMC.
+- zram recompression with zstd 1.5.7 and 8-page zsmalloc chains, more apps stay in memory.
+- Multi-gen LRU page cache fix, frequently read app files stay cached.
 - Official KernelSU v3.3.1 with SUSFS v2.3.0.
 - Dex touchpad support for OneUI ROMs.
 - Removed firmware checks from check_connection in novatek touchscreen driver to fix 2 seconds delay for RestlessOS treble patchset based GSI's
