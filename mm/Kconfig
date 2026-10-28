@@ -896,6 +896,9 @@ config ARCH_HAS_HUGEPD
 config MAPPING_DIRTY_HELPERS
         bool
 
+config KMAP_LOCAL
+	bool
+
 # Some architectures want callbacks for all IO mappings in order to
 # track the physical addresses that get used as devices.
 config ARCH_HAS_IOREMAP_PHYS_HOOKS
@@ -942,5 +945,4 @@ config LRU_GEN_STATS
 # }
 
 source "mm/damon/Kconfig"
-
 endmenu

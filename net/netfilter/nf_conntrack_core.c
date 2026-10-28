@@ -565,7 +565,7 @@ struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 	tmpl->status = IPS_TEMPLATE;
 	write_pnet(&tmpl->ct_net, net);
 	nf_ct_zone_add(tmpl, zone);
-	refcount_set(&tmpl->ct_general.use, 1);
+	atomic_set(&tmpl->ct_general.use, 0);
 
 	return tmpl;
 }
@@ -586,9 +586,23 @@ static void destroy_gre_conntrack(struct nf_conn *ct)
 {
 #ifdef CONFIG_NF_CT_PROTO_GRE
 	struct nf_conn *master = ct->master;
+	struct nf_conn_help *help;
 
-	if (master)
-		nf_ct_gre_keymap_destroy(master);
+	if (!master)
+		return;
+
+	help = nfct_help(master);
+	if (help) {
+		struct nf_conntrack_helper *helper;
+
+		rcu_read_lock();
+		helper = rcu_dereference(help->helper);
+		/* Only pptp helper has a destroy callback. */
+		if (helper && helper->destroy)
+			nf_ct_gre_keymap_destroy(master);
+
+		rcu_read_unlock();
+	}
 #endif
 }
 
@@ -598,7 +612,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	struct nf_conn *ct = (struct nf_conn *)nfct;
 
 	pr_debug("destroy_conntrack(%p)\n", ct);
-	WARN_ON(refcount_read(&nfct->use) != 0);
+	WARN_ON(atomic_read(&nfct->use) != 0);
 
 	if (unlikely(nf_ct_is_template(ct))) {
 		nf_ct_tmpl_free(ct);
@@ -717,11 +731,8 @@ nf_ct_match(const struct nf_conn *ct1, const struct nf_conn *ct2)
 /* caller must hold rcu readlock and none of the nf_conntrack_locks */
 static void nf_ct_gc_expired(struct nf_conn *ct)
 {
-	if (!refcount_inc_not_zero(&ct->ct_general.use))
+	if (!atomic_inc_not_zero(&ct->ct_general.use))
 		return;
-
-	/* load ->status after refcount increase */
-	smp_acquire__after_ctrl_dep();
 
 	if (nf_ct_should_gc(ct))
 		nf_ct_kill(ct);
@@ -788,10 +799,7 @@ __nf_conntrack_find_get(struct net *net, const struct nf_conntrack_zone *zone,
 		 * in, try to obtain a reference and re-check tuple
 		 */
 		ct = nf_ct_tuplehash_to_ctrack(h);
-		if (likely(refcount_inc_not_zero(&ct->ct_general.use))) {
-			/* re-check key after refcount */
-			smp_acquire__after_ctrl_dep();
-
+		if (likely(atomic_inc_not_zero(&ct->ct_general.use))) {
 			if (likely(nf_ct_key_equal(h, tuple, zone, net)))
 				goto found;
 
@@ -860,7 +868,7 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 
 	smp_wmb();
 	/* The caller holds a reference to this object */
-	refcount_set(&ct->ct_general.use, 2);
+	atomic_set(&ct->ct_general.use, 2);
 	__nf_conntrack_hash_insert(ct, hash, reply_hash);
 	nf_conntrack_double_unlock(hash, reply_hash);
 	NF_CT_STAT_INC(net, insert);
@@ -909,7 +917,7 @@ static void __nf_conntrack_insert_prepare(struct nf_conn *ct)
 {
 	struct nf_conn_tstamp *tstamp;
 
-	refcount_inc(&ct->ct_general.use);
+	atomic_inc(&ct->ct_general.use);
 	ct->status |= IPS_CONFIRMED;
 
 	/* set conntrack timestamp, if enabled. */
@@ -1288,11 +1296,8 @@ static unsigned int early_drop_list(struct net *net,
 		    nf_ct_is_dying(tmp))
 			continue;
 
-		if (!refcount_inc_not_zero(&tmp->ct_general.use))
+		if (!atomic_inc_not_zero(&tmp->ct_general.use))
 			continue;
-
-		/* load ->ct_net and ->status after refcount increase */
-		smp_acquire__after_ctrl_dep();
 
 		/* kill only if still in same netns -- might have moved due to
 		 * SLAB_TYPESAFE_BY_RCU rules.
@@ -1407,11 +1412,8 @@ static void gc_worker(struct work_struct *work)
 				continue;
 
 			/* need to take reference to avoid possible races */
-			if (!refcount_inc_not_zero(&tmp->ct_general.use))
+			if (!atomic_inc_not_zero(&tmp->ct_general.use))
 				continue;
-
-			/* load ->status after refcount increase */
-			smp_acquire__after_ctrl_dep();
 
 			if (gc_worker_skip_ct(tmp)) {
 				nf_ct_put(tmp);
@@ -1513,7 +1515,7 @@ __nf_conntrack_alloc(struct net *net,
 	/* Because we use RCU lookups, we set ct_general.use to zero before
 	 * this is inserted in any list.
 	 */
-	refcount_set(&ct->ct_general.use, 0);
+	atomic_set(&ct->ct_general.use, 0);
 	return ct;
 out:
 	atomic_dec(&net->ct.count);
@@ -1537,7 +1539,7 @@ void nf_conntrack_free(struct nf_conn *ct)
 	/* A freed object has refcnt == 0, that's
 	 * the golden rule for SLAB_TYPESAFE_BY_RCU
 	 */
-	WARN_ON(refcount_read(&ct->ct_general.use) != 0);
+	WARN_ON(atomic_read(&ct->ct_general.use) != 0);
 
 	nf_ct_ext_destroy(ct);
 	kmem_cache_free(nf_conntrack_cachep, ct);
@@ -1626,18 +1628,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	if (!exp)
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
 
-	/* Other CPU might have obtained a pointer to this object before it was
-	 * released.  Because refcount is 0, refcount_inc_not_zero() will fail.
-	 *
-	 * After refcount_set(1) it will succeed; ensure that zeroing of
-	 * ct->status and the correct ct->net pointer are visible; else other
-	 * core might observe CONFIRMED bit which means the entry is valid and
-	 * in the hash table, but its not (anymore).
-	 */
-	smp_wmb();
-
-	/* Now it is inserted into the unconfirmed list, set refcount to 1. */
-	refcount_set(&ct->ct_general.use, 1);
+	/* Now it is inserted into the unconfirmed list, bump refcount */
+	nf_conntrack_get(&ct->ct_general);
 	nf_ct_add_to_unconfirmed_list(ct);
 
 	local_bh_enable();
@@ -2240,7 +2232,7 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 
 	return NULL;
 found:
-	refcount_inc(&ct->ct_general.use);
+	atomic_inc(&ct->ct_general.use);
 	spin_unlock(lockp);
 	local_bh_enable();
 	return ct;
