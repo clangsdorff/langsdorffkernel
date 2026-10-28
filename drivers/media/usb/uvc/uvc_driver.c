@@ -235,6 +235,9 @@ static int uvc_parse_format(struct uvc_device *dev,
 	if (buflen < 4)
 		return -EINVAL;
 
+	if (buflen < 4)
+		return -EINVAL;
+
 	format->type = buffer[2];
 	format->index = buffer[3];
 

@@ -430,7 +430,9 @@ static int iterate_incfs_dir(struct file *file, struct dir_context *ctx)
 	}
 
 	ctx->pos -= PSEUDO_FILE_COUNT;
+	lockdep_set_subclass(&dir->backing_dir->f_inode->i_rwsem, I_MUTEX_PARENT);
 	error = iterate_dir(dir->backing_dir, ctx);
+	lockdep_set_subclass(&dir->backing_dir->f_inode->i_rwsem, 0);
 	ctx->pos += PSEUDO_FILE_COUNT;
 	file->f_pos = dir->backing_dir->f_pos;
 out:
@@ -1660,7 +1662,7 @@ static int incfs_setattr(struct dentry *dentry, struct iattr *ia)
 		ia->ia_mode |= 0222;
 	}
 
-	inode_lock(d_inode(backing_dentry));
+	inode_lock_nested(d_inode(backing_dentry), I_MUTEX_PARENT);
 	error = notify_change(backing_dentry, ia, NULL);
 	inode_unlock(d_inode(backing_dentry));
 
