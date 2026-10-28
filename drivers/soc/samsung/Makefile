@@ -16,7 +16,7 @@ obj-$(CONFIG_EXYNOS_ACPM)       += acpm/
 obj-$(CONFIG_EXYNOS_FLEXPMU_DBG)        += exynos-flexpmu-dbg.o
 obj-$(CONFIG_EXYNOS_PM_DOMAINS) += pm_domains.o
 obj-$(CONFIG_EXYNOS_PM)		+= exynos-pm.o
-obj-$(CONFIG_EXYNOS_CHIPID)	+= exynos-chipid.o
+obj-$(CONFIG_EXYNOS_CHIPID)	+= exynos-chipid.o exynos-asv.o
 
 # Exynos Memlogger
 obj-$(CONFIG_EXYNOS_MEMORY_LOGGER)      += memlogger.o
