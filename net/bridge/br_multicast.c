@@ -2838,6 +2838,7 @@ br_multicast_leave_group(struct net_bridge *br,
 
 			p->flags |= MDB_PG_FLAGS_FAST_LEAVE;
 			br_multicast_del_pg(mp, p, pp);
+			break;
 		}
 		goto out;
 	}
@@ -3356,8 +3357,6 @@ void br_multicast_dev_del(struct net_bridge *br)
 
 	br_multicast_gc(&deleted_head);
 	cancel_work_sync(&br->mcast_gc_work);
-
-	rcu_barrier();
 }
 
 int br_multicast_set_router(struct net_bridge *br, unsigned long val)

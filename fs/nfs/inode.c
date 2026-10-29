@@ -207,7 +207,7 @@ static bool nfs_has_xattr_cache(const struct nfs_inode *nfsi)
 }
 #endif
 
-static void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
+void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	bool have_delegation = NFS_PROTO(inode)->have_delegation(inode, FMODE_READ);
@@ -1065,8 +1065,8 @@ void nfs_inode_attach_open_context(struct nfs_open_context *ctx)
 	spin_lock(&inode->i_lock);
 	if (list_empty(&nfsi->open_files) &&
 	    (nfsi->cache_validity & NFS_INO_DATA_INVAL_DEFER))
-		nfsi->cache_validity |= NFS_INO_INVALID_DATA |
-			NFS_INO_REVAL_FORCED;
+		nfs_set_cache_invalid(inode, NFS_INO_INVALID_DATA |
+						     NFS_INO_REVAL_FORCED);
 	list_add_tail_rcu(&ctx->list, &nfsi->open_files);
 	spin_unlock(&inode->i_lock);
 }
@@ -1279,6 +1279,61 @@ static int nfs_invalidate_mapping(struct inode *inode, struct address_space *map
 	return 0;
 }
 
+/**
+ * nfs_clear_invalid_mapping - Conditionally clear a mapping
+ * @mapping: pointer to mapping
+ *
+ * If the NFS_INO_INVALID_DATA inode flag is set, clear the mapping.
+ */
+int nfs_clear_invalid_mapping(struct address_space *mapping)
+{
+	struct inode *inode = mapping->host;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	unsigned long *bitlock = &nfsi->flags;
+	int ret = 0;
+
+	/*
+	 * We must clear NFS_INO_INVALID_DATA first to ensure that
+	 * invalidations that come in while we're shooting down the mappings
+	 * are respected. But, that leaves a race window where one revalidator
+	 * can clear the flag, and then another checks it before the mapping
+	 * gets invalidated. Fix that by serializing access to this part of
+	 * the function.
+	 *
+	 * At the same time, we need to allow other tasks to see whether we
+	 * might be in the middle of invalidating the pages, so we only set
+	 * the bit lock here if it looks like we're going to be doing that.
+	 */
+	for (;;) {
+		ret = wait_on_bit_action(bitlock, NFS_INO_INVALIDATING,
+					 nfs_wait_bit_killable, TASK_KILLABLE);
+		if (ret)
+			goto out;
+		spin_lock(&inode->i_lock);
+		if (test_bit(NFS_INO_INVALIDATING, bitlock)) {
+			spin_unlock(&inode->i_lock);
+			continue;
+		}
+		if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
+			break;
+		spin_unlock(&inode->i_lock);
+		goto out;
+	}
+
+	set_bit(NFS_INO_INVALIDATING, bitlock);
+	smp_wmb();
+	nfsi->cache_validity &=
+		~(NFS_INO_INVALID_DATA | NFS_INO_DATA_INVAL_DEFER);
+	spin_unlock(&inode->i_lock);
+	trace_nfs_invalidate_mapping_enter(inode);
+	ret = nfs_invalidate_mapping(inode, mapping);
+	trace_nfs_invalidate_mapping_exit(inode, ret);
+
+	clear_and_wake_up_bit(NFS_INO_INVALIDATING, bitlock);
+out:
+	return ret;
+}
+
 bool nfs_mapping_need_revalidate_inode(struct inode *inode)
 {
 	return nfs_check_cache_invalid(inode, NFS_INO_REVAL_PAGECACHE) ||
@@ -1311,65 +1366,19 @@ out:
  * @inode: pointer to host inode
  * @mapping: pointer to mapping
  */
-int nfs_revalidate_mapping(struct inode *inode,
-		struct address_space *mapping)
+int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-	unsigned long *bitlock = &nfsi->flags;
-	int ret = 0;
-
 	/* swapfiles are not supposed to be shared. */
 	if (IS_SWAPFILE(inode))
-		goto out;
+		return 0;
 
 	if (nfs_mapping_need_revalidate_inode(inode)) {
-		ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
+		int ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
-	/*
-	 * We must clear NFS_INO_INVALID_DATA first to ensure that
-	 * invalidations that come in while we're shooting down the mappings
-	 * are respected. But, that leaves a race window where one revalidator
-	 * can clear the flag, and then another checks it before the mapping
-	 * gets invalidated. Fix that by serializing access to this part of
-	 * the function.
-	 *
-	 * At the same time, we need to allow other tasks to see whether we
-	 * might be in the middle of invalidating the pages, so we only set
-	 * the bit lock here if it looks like we're going to be doing that.
-	 */
-	for (;;) {
-		ret = wait_on_bit_action(bitlock, NFS_INO_INVALIDATING,
-					 nfs_wait_bit_killable, TASK_KILLABLE);
-		if (ret)
-			goto out;
-		spin_lock(&inode->i_lock);
-		if (test_bit(NFS_INO_INVALIDATING, bitlock)) {
-			spin_unlock(&inode->i_lock);
-			continue;
-		}
-		if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
-			break;
-		spin_unlock(&inode->i_lock);
-		goto out;
-	}
-
-	set_bit(NFS_INO_INVALIDATING, bitlock);
-	smp_wmb();
-	nfsi->cache_validity &= ~(NFS_INO_INVALID_DATA|
-			NFS_INO_DATA_INVAL_DEFER);
-	spin_unlock(&inode->i_lock);
-	trace_nfs_invalidate_mapping_enter(inode);
-	ret = nfs_invalidate_mapping(inode, mapping);
-	trace_nfs_invalidate_mapping_exit(inode, ret);
-
-	clear_bit_unlock(NFS_INO_INVALIDATING, bitlock);
-	smp_mb__after_atomic();
-	wake_up_bit(bitlock, NFS_INO_INVALIDATING);
-out:
-	return ret;
+	return nfs_clear_invalid_mapping(mapping);
 }
 
 static bool nfs_file_has_writers(struct nfs_inode *nfsi)
@@ -2227,15 +2236,26 @@ EXPORT_SYMBOL_GPL(nfs_net_id);
 static int nfs_net_init(struct net *net)
 {
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
+	int err;
 
 	nfs_clients_init(net);
 
 	if (!rpc_proc_register(net, &nn->rpcstats)) {
-		nfs_clients_exit(net);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_proc_rpc;
 	}
 
-	return nfs_fs_proc_net_init(net);
+	err = nfs_fs_proc_net_init(net);
+	if (err)
+		goto err_proc_nfs;
+
+	return 0;
+
+err_proc_nfs:
+	rpc_proc_unregister(net, "nfs");
+err_proc_rpc:
+	nfs_clients_exit(net);
+	return err;
 }
 
 static void nfs_net_exit(struct net *net)

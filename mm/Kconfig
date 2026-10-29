@@ -933,6 +933,9 @@ config ARCH_HAS_HUGEPD
 config MAPPING_DIRTY_HELPERS
         bool
 
+config KMAP_LOCAL
+	bool
+
 # Some architectures want callbacks for all IO mappings in order to
 # track the physical addresses that get used as devices.
 config ARCH_HAS_IOREMAP_PHYS_HOOKS
@@ -1026,7 +1029,6 @@ config MEMFD_ASHMEM_SHIM
 	  Unless you are running Android, say N.
 
 source "mm/damon/Kconfig"
-
 endmenu
 
 source "mm/sec_mm/Kconfig"
