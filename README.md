@@ -20,7 +20,7 @@
 - Removed firmware checks from check_connection in novatek touchscreen driver to fix 2 seconds delay for RestlessOS treble patchset based GSI's
 - Built-in hook for the `${fps_position}` bug in flagship FOD ports.
 - AVB and some security checks disabled.
-- Based on Linux 5.10.236.
+- Merged with android13-5.10-lts, based on Linux 5.10.272.
 
 **No Overclock & Root Version Features**
 - Everything in main version, **expect**;
