@@ -11,7 +11,6 @@ i2c-s3c2410.ko
 sec_debug_mode.ko
 ems.ko
 zsmalloc.ko
-blk-sec-stats.ko
 phy-exynos-mipi-dsim.ko
 phy-exynos-mipi.ko
 phy-exynos-usbdrd-super.ko
