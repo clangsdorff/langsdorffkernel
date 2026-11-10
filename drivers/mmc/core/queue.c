@@ -491,7 +491,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 	blk_queue_rq_timeout(mq->queue, 20 * HZ);
 
 	mmc_setup_queue(mq, card);
-	mq->queue->backing_dev_info->ra_pages = SZ_256K / PAGE_SIZE;
+	mq->queue->backing_dev_info->ra_pages = SZ_512K / PAGE_SIZE;
 	return 0;
 
 free_tag_set:
