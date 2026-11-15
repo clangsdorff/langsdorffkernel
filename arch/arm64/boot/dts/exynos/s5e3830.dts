@@ -2505,9 +2505,9 @@
 
 		ntu {
 			root = <0x05>;
-			foreground = <0x19>;
+			foreground = <0x64>;
 			background = <0x05>;
-			top-app = <0x19>;
+			top-app = <0x64>;
 			rt = <0x05>;
 			system = <0x05>;
 			system-background = <0x05>;
