@@ -6337,9 +6337,12 @@ int slsi_get_mhs_ws_chan_vsdb(struct wiphy *wiphy, struct net_device *dev,
 	struct net_device *sta_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_WLAN);
 	struct netdev_vif *ndev_sta_vif  = netdev_priv(sta_dev);
 	int sta_frequency = ndev_sta_vif->chan->center_freq;
+	struct ieee80211_channel *sta_chan = ieee80211_get_channel(wiphy, sta_frequency);
 
-	if (!slsi_check_if_non_indoor_non_dfs_channel(sdev, sta_frequency))
-		return 1; /*AP cannot start on indoor/DFS channel so we will reject request from the host*/
+	/* the sta is already associated on this channel, so indoor-only is fine for the shared ap */
+	if (!sta_chan || (sta_chan->flags & (IEEE80211_CHAN_RADAR | IEEE80211_CHAN_DISABLED |
+					     IEEE80211_CHAN_NO_IR)))
+		return 1;
 
 	if ((settings->chandef.chan->center_freq) != (sta_frequency)) {
 		*wifi_sharing_channel_switched = 1;
