@@ -2827,7 +2827,6 @@ static void nvt_fb_resume_work(struct work_struct *work)
 {
 	struct nvt_ts_data *ts = container_of(work, struct nvt_ts_data, fb_resume_work);
 
-	nvt_ts_early_resume(&ts->client->dev);
 	nvt_ts_resume(&ts->client->dev);
 }
 
@@ -2840,18 +2839,28 @@ static int nvt_fb_notifier_callback(struct notifier_block *self, unsigned long e
 	if (ts->sysinput_seen)
 		return 0;
 
-	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+	if (evdata && evdata->data) {
 		blank = evdata->data;
-		switch (*blank) {
-		case FB_BLANK_POWERDOWN:
-			cancel_work_sync(&ts->fb_resume_work);
-			nvt_ts_suspend(&ts->client->dev);
-			break;
-		case FB_BLANK_UNBLANK:
-			schedule_work(&ts->fb_resume_work);
-			break;
-		default:
-			break;
+		if (event == FB_EARLY_EVENT_BLANK) {
+			switch (*blank) {
+			case FB_BLANK_POWERDOWN:
+				cancel_work_sync(&ts->fb_resume_work);
+				nvt_ts_suspend(&ts->client->dev);
+				break;
+			case FB_BLANK_UNBLANK:
+				nvt_ts_early_resume(&ts->client->dev);
+				break;
+			default:
+				break;
+			}
+		} else if (event == FB_EVENT_BLANK) {
+			switch (*blank) {
+			case FB_BLANK_UNBLANK:
+				schedule_work(&ts->fb_resume_work);
+				break;
+			default:
+				break;
+			}
 		}
 	}
 	return 0;

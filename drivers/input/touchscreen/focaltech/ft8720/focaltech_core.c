@@ -2335,20 +2335,29 @@ static int fts_fb_notifier_callback(struct notifier_block *self, unsigned long e
 	if (ts_data->sysinput_seen)
 		return 0;
 
-	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+	if (evdata && evdata->data) {
 		blank = evdata->data;
-		switch (*blank) {
-		case FB_BLANK_POWERDOWN:
-			cancel_work_sync(&ts_data->resume_work);
-			fts_ts_suspend(ts_data->dev);
-			break;
-		case FB_BLANK_UNBLANK:
-			if (ts_data->gesture_mode)
-				fts_ctrl_lcd_reset_regulator(ts_data, false);
-			queue_work(ts_data->ts_workqueue, &ts_data->resume_work);
-			break;
-		default:
-			break;
+		if (event == FB_EARLY_EVENT_BLANK) {
+			switch (*blank) {
+			case FB_BLANK_POWERDOWN:
+				cancel_work_sync(&ts_data->resume_work);
+				fts_ts_suspend(ts_data->dev);
+				break;
+			case FB_BLANK_UNBLANK:
+				if (ts_data->gesture_mode)
+					fts_ctrl_lcd_reset_regulator(ts_data, false);
+				break;
+			default:
+				break;
+			}
+		} else if (event == FB_EVENT_BLANK) {
+			switch (*blank) {
+			case FB_BLANK_UNBLANK:
+				queue_work(ts_data->ts_workqueue, &ts_data->resume_work);
+				break;
+			default:
+				break;
+			}
 		}
 	}
 	return 0;
