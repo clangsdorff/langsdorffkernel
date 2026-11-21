@@ -269,7 +269,7 @@ struct tegra_msi {
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *domain;
 	struct mutex map_lock;
-	spinlock_t mask_lock;
+	raw_spinlock_t mask_lock;
 	void *virt;
 	dma_addr_t phys;
 	int irq;
@@ -1617,11 +1617,11 @@ static void tegra_msi_irq_mask(struct irq_data *d)
 	unsigned long flags;
 	u32 value;
 
-	spin_lock_irqsave(&msi->mask_lock, flags);
+	raw_spin_lock_irqsave(&msi->mask_lock, flags);
 	value = afi_readl(pcie, AFI_MSI_EN_VEC(index));
 	value &= ~BIT(d->hwirq % 32);
 	afi_writel(pcie, value, AFI_MSI_EN_VEC(index));
-	spin_unlock_irqrestore(&msi->mask_lock, flags);
+	raw_spin_unlock_irqrestore(&msi->mask_lock, flags);
 }
 
 static void tegra_msi_irq_unmask(struct irq_data *d)
@@ -1632,11 +1632,11 @@ static void tegra_msi_irq_unmask(struct irq_data *d)
 	unsigned long flags;
 	u32 value;
 
-	spin_lock_irqsave(&msi->mask_lock, flags);
+	raw_spin_lock_irqsave(&msi->mask_lock, flags);
 	value = afi_readl(pcie, AFI_MSI_EN_VEC(index));
 	value |= BIT(d->hwirq % 32);
 	afi_writel(pcie, value, AFI_MSI_EN_VEC(index));
-	spin_unlock_irqrestore(&msi->mask_lock, flags);
+	raw_spin_unlock_irqrestore(&msi->mask_lock, flags);
 }
 
 static int tegra_msi_set_affinity(struct irq_data *d, const struct cpumask *mask, bool force)
@@ -1752,7 +1752,7 @@ static int tegra_pcie_msi_setup(struct tegra_pcie *pcie)
 	int err;
 
 	mutex_init(&msi->map_lock);
-	spin_lock_init(&msi->mask_lock);
+	raw_spin_lock_init(&msi->mask_lock);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = tegra_allocate_domains(msi);
