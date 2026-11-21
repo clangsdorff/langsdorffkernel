@@ -504,8 +504,6 @@ static void ilitek_tddi_wq_init(void)
 #if IS_ENABLED(CONFIG_FB)
 static void ilitek_fb_resume_work(struct work_struct *work)
 {
-	if ((ilits->screen_off_sate != TP_EARLY_RESUME) && (ilits->screen_off_sate != TP_RESUME))
-		ili_sleep_handler(TP_EARLY_RESUME);
 	ili_sleep_handler(TP_RESUME);
 }
 
@@ -518,18 +516,29 @@ int ilitek_fb_notifier_callback(struct notifier_block *self, unsigned long event
 	if (ilits->sysinput_seen)
 		return 0;
 
-	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+	if (evdata && evdata->data) {
 		blank = evdata->data;
-		switch (*blank) {
-		case FB_BLANK_POWERDOWN:
-			cancel_work_sync(&ilits->fb_resume_work);
-			ili_sleep_handler(TP_EARLY_SUSPEND);
-			break;
-		case FB_BLANK_UNBLANK:
-			schedule_work(&ilits->fb_resume_work);
-			break;
-		default:
-			break;
+		if (event == FB_EARLY_EVENT_BLANK) {
+			switch (*blank) {
+			case FB_BLANK_POWERDOWN:
+				cancel_work_sync(&ilits->fb_resume_work);
+				ili_sleep_handler(TP_EARLY_SUSPEND);
+				break;
+			case FB_BLANK_UNBLANK:
+				if ((ilits->screen_off_sate != TP_EARLY_RESUME) && (ilits->screen_off_sate != TP_RESUME))
+					ili_sleep_handler(TP_EARLY_RESUME);
+				break;
+			default:
+				break;
+			}
+		} else if (event == FB_EVENT_BLANK) {
+			switch (*blank) {
+			case FB_BLANK_UNBLANK:
+				schedule_work(&ilits->fb_resume_work);
+				break;
+			default:
+				break;
+			}
 		}
 	}
 	return 0;
