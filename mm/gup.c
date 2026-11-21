@@ -1456,6 +1456,36 @@ long populate_vma_page_range(struct vm_area_struct *vma,
 }
 
 /*
+ * faultin_vma_page_range() - populate (prefault) page tables inside the
+ *			      given vma range readable/writable
+ */
+long faultin_vma_page_range(struct vm_area_struct *vma, unsigned long start,
+			    unsigned long end, bool write, int *locked)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned long nr_pages = (end - start) / PAGE_SIZE;
+	int gup_flags;
+
+	VM_BUG_ON(start & ~PAGE_MASK);
+	VM_BUG_ON(end & ~PAGE_MASK);
+	VM_BUG_ON_VMA(start < vma->vm_start, vma);
+	VM_BUG_ON_VMA(end > vma->vm_end, vma);
+	mmap_assert_locked(mm);
+
+	/*
+	 * FOLL_TOUCH: Mark page accessed and thereby young; will also mark
+	 *	       the page dirty with FOLL_WRITE.
+	 * FOLL_POPULATE: Always populate memory with VM_LOCKONFAULT.
+	 */
+	gup_flags = FOLL_TOUCH | FOLL_POPULATE;
+	if (write)
+		gup_flags |= FOLL_WRITE;
+
+	return __get_user_pages(mm, start, nr_pages, gup_flags,
+				NULL, NULL, locked);
+}
+
+/*
  * __mm_populate - populate and/or mlock pages within a range of address space.
  *
  * This is used to implement mlock() and the MAP_POPULATE / MAP_LOCKED mmap

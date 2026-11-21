@@ -56,6 +56,10 @@ static int madvise_need_mmap_write(int behavior)
 	case MADV_DONTNEED:
 	case MADV_COLD:
 	case MADV_PAGEOUT:
+	case MADV_POPULATE_READ:
+	case MADV_POPULATE_WRITE:
+	case MADV_POPULATE_READ:
+	case MADV_POPULATE_WRITE:
 	case MADV_FREE:
 #if IS_ENABLED(CONFIG_ZRAM)
 	case MADV_PREFETCH:
@@ -1122,6 +1126,62 @@ static long madvise_remove(struct vm_area_struct *vma,
 	return error;
 }
 
+static long madvise_populate(struct vm_area_struct *vma,
+			     struct vm_area_struct **prev,
+			     unsigned long start, unsigned long end,
+			     int behavior)
+{
+	const bool write = behavior == MADV_POPULATE_WRITE;
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned long tmp_end;
+	int locked = 1;
+	long pages;
+
+	*prev = vma;
+
+	while (start < end) {
+		/*
+		 * We might have dropped mmap_lock in faultin_vma_page_range()
+		 * and need to re-acquire it and re-lookup the VMA.
+		 */
+		if (!locked) {
+			mmap_read_lock(mm);
+			vma = find_vma(mm, start);
+			if (!vma || start < vma->vm_start)
+				return -ENOMEM;
+			tmp_end = min(end, vma->vm_end);
+			locked = 1;
+		} else {
+			tmp_end = end;
+		}
+
+		pages = faultin_vma_page_range(vma, start, tmp_end, write,
+					       &locked);
+		if (!locked)
+			*prev = NULL;
+		if (pages < 0) {
+			if (!locked)
+				mmap_read_lock(mm);
+			switch (pages) {
+			case -EINTR:
+				return -EINTR;
+			case -EINVAL:
+				return -EINVAL;
+			case -EHWPOISON:
+			case -EFAULT:
+				return -EFAULT;
+			default:
+				return -ENOMEM;
+			}
+		}
+		start += pages * PAGE_SIZE;
+	}
+
+	if (!locked)
+		mmap_read_lock(mm);
+	return 0;
+}
+
 /*
  * Apply an madvise behavior to a region of a vma.  madvise_update_vma
  * will handle splitting a vm area into separate areas, each area with its own
@@ -1145,6 +1205,9 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 		return madvise_cold(vma, prev, start, end);
 	case MADV_PAGEOUT:
 		return madvise_pageout(vma, prev, start, end);
+	case MADV_POPULATE_READ:
+	case MADV_POPULATE_WRITE:
+		return madvise_populate(vma, prev, start, end, behavior);
 #if IS_ENABLED(CONFIG_ZRAM)
 	case MADV_PREFETCH:
 		return madvise_prefetch(vma, prev, start, end);
@@ -1284,6 +1347,8 @@ madvise_behavior_valid(int behavior)
 	case MADV_FREE:
 	case MADV_COLD:
 	case MADV_PAGEOUT:
+	case MADV_POPULATE_READ:
+	case MADV_POPULATE_WRITE:
 #if IS_ENABLED(CONFIG_ZRAM)
 	case MADV_PREFETCH:
 #endif
@@ -1316,6 +1381,8 @@ process_madvise_behavior_valid(int behavior)
 	switch (behavior) {
 	case MADV_COLD:
 	case MADV_PAGEOUT:
+	case MADV_POPULATE_READ:
+	case MADV_POPULATE_WRITE:
 #if IS_ENABLED(CONFIG_ZRAM)
 	case MADV_WRITEBACK:
 	case MADV_PREFETCH:
