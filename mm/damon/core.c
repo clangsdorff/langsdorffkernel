@@ -653,8 +653,8 @@ static void damos_set_effective_quota(struct damos_quota *quota)
 	}
 
 	if (quota->total_charged_ns)
-		throughput = quota->total_charged_sz * 1000000 /
-			quota->total_charged_ns;
+		throughput = mult_frac(quota->total_charged_sz, 1000000,
+						quota->total_charged_ns);
 	else
 		throughput = PAGE_SIZE * 1024;
 	esz = throughput * quota->ms;
@@ -682,9 +682,15 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 			continue;
 
 		/* New charge window starts */
-		if (time_after_eq(jiffies, quota->charged_from +
-					msecs_to_jiffies(
-						quota->reset_interval))) {
+		/* First charge window */
+		if (!quota->total_charged_sz && !quota->charged_from) {
+			quota->charged_from = jiffies;
+			damos_set_effective_quota(quota);
+		}
+
+		if (!time_in_range_open(jiffies, quota->charged_from,
+				quota->charged_from +
+				msecs_to_jiffies(quota->reset_interval))) {
 			if (quota->esz && quota->charged_sz >= quota->esz)
 				s->stat.qt_exceeds++;
 			quota->total_charged_sz += quota->charged_sz;
