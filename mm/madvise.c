@@ -58,8 +58,6 @@ static int madvise_need_mmap_write(int behavior)
 	case MADV_PAGEOUT:
 	case MADV_POPULATE_READ:
 	case MADV_POPULATE_WRITE:
-	case MADV_POPULATE_READ:
-	case MADV_POPULATE_WRITE:
 	case MADV_FREE:
 #if IS_ENABLED(CONFIG_ZRAM)
 	case MADV_PREFETCH:
