@@ -210,6 +210,7 @@ static char *task_cgroup_name[] = {
 	"system",
 	"system-background",
 	"dex2oat",
+	"foreground_window",
 	"nnapi-hal",
 	"camera-daemon",
 	"midground",
