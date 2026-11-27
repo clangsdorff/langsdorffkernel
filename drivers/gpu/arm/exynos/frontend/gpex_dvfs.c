@@ -190,7 +190,7 @@ static void dvfs_callback(struct work_struct *data)
 	spin_lock_irqsave(&dvfs.spinlock, flags);
 
 	if (dvfs.timer_active)
-		queue_delayed_work_on(0, dvfs.dvfs_wq, &dvfs.dvfs_work,
+		queue_delayed_work(dvfs.dvfs_wq, &dvfs.dvfs_work,
 				      msecs_to_jiffies(dvfs.polling_speed));
 
 	spin_unlock_irqrestore(&dvfs.spinlock, flags);
@@ -210,7 +210,7 @@ static void gpu_dvfs_timer_control(bool timer_state)
 	} else if (!dvfs.timer_active && timer_state) {
 		gpex_qos_set_from_clock(gpex_clock_get_cur_clock());
 
-		queue_delayed_work_on(0, dvfs.dvfs_wq, &dvfs.dvfs_work,
+		queue_delayed_work(dvfs.dvfs_wq, &dvfs.dvfs_work,
 				      msecs_to_jiffies(dvfs.polling_speed));
 		spin_lock_irqsave(&dvfs.spinlock, flags);
 		dvfs.down_requirement = dvfs.table[dvfs.step].down_staycount;
@@ -311,9 +311,9 @@ static int gpu_dvfs_handler_deinit()
 static int gpu_pm_metrics_init()
 {
 	INIT_DELAYED_WORK(&dvfs.dvfs_work, dvfs_callback);
-	dvfs.dvfs_wq = create_workqueue("g3d_dvfs");
+	dvfs.dvfs_wq = alloc_workqueue("g3d_dvfs", WQ_HIGHPRI | WQ_UNBOUND, 1);
 
-	queue_delayed_work_on(0, dvfs.dvfs_wq, &dvfs.dvfs_work,
+	queue_delayed_work(dvfs.dvfs_wq, &dvfs.dvfs_work,
 			      msecs_to_jiffies(dvfs.polling_speed));
 
 	return 0;
